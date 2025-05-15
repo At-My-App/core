@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "es2020", // Or newer, depending on your target Node/browser versions
+    "module": "commonjs", // Common for Node.js libraries, or "esnext" if you're building ESM
+    "declaration": true, // Generate .d.ts files
+    "outDir": "./dist", // Output directory for compiled files
+    "rootDir": "./src", // Specify root directory of source files
+    "strict": true, // Enable all strict type-checking options
+    "esModuleInterop": true, // Enables emit interoperability between CommonJS and ES Modules
+    "skipLibCheck": true, // Skip type checking of all declaration files (*.d.ts).
+    "forceConsistentCasingInFileNames": true,
+    "lib": ["es2020", "dom"] // "dom" is often included for Fetch API related types, though cross-fetch provides its own.
+    // If your "better-fetch" library or other dependencies require it:
+    // "resolveJsonModule": true,
+  },
+  "include": ["src/**/*"], // Which files to include in compilation
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "test"] // Exclude test files from main build
+}
