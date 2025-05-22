@@ -1,8 +1,10 @@
+import { AmaEvent } from "../definitions/AmaEvent";
 import { AmaFile, AmaFileRef } from "../definitions/AmaFile";
 import { BaseRef } from "../definitions/Base";
 
 export type AtMyAppClient = {
   collections: CollectionsClient;
+  analytics: AnalyticsClient;
 };
 
 export type CollectionsGetOptions = {
@@ -26,4 +28,11 @@ export type AtMyAppClientOptions = {
   baseUrl: string;
   customFetch?: typeof fetch;
   previewKey?: string;
+};
+
+export type AnalyticsClient = {
+  trackEvent: <Event extends AmaEvent<string, string[]>>(
+    eventId: Event["ref"]["id"],
+    data: Record<Event["ref"]["columns"][number], any>
+  ) => Promise<boolean>;
 };
