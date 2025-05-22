@@ -1,4 +1,4 @@
-import { Base, BaseRef } from "./Base";
+import { Base, BaseDef } from "./Base";
 
 export interface AmaImageConfig {
   /**
@@ -19,15 +19,15 @@ export interface AmaImageConfig {
   };
 }
 
-export interface AmaImageRef<Path extends string, Config extends AmaImageConfig>
-  extends BaseRef<Path, AmaImage<any>, "image"> {
+export interface AmaImageDef<Path extends string, Config extends AmaImageConfig>
+  extends BaseDef<Path, AmaImage<any>, "image"> {
   structure: {
     __amatype: "AmaImage";
     __config: Config;
   };
 }
 
-export interface AmaImage<Ref extends AmaImageRef<string, AmaImageConfig>>
+export interface AmaImage<Ref extends AmaImageDef<string, AmaImageConfig>>
   extends Base<"AmaImage", Ref["structure"]["__config"]> {
   src: string;
 }

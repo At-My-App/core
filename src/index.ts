@@ -6,7 +6,7 @@ export {
   CollectionsGetOptions,
 } from "./client/clientTypes";
 
-export { AmaContent, AmaContentRef } from "./definitions/AmaContent";
-export { AmaEvent, AmaEventRef } from "./definitions/AmaEvent";
-export { AmaFile, AmaFileRef } from "./definitions/AmaFile";
-export { AmaImage, AmaImageRef } from "./definitions/AmaImage";
+export { AmaContent, AmaContentDef } from "./definitions/AmaContent";
+export { AmaEvent, AmaEventDef } from "./definitions/AmaEvent";
+export { AmaFile, AmaFileDef } from "./definitions/AmaFile";
+export { AmaImage, AmaImageDef } from "./definitions/AmaImage";

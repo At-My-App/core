@@ -1,12 +1,12 @@
-import { Base, BaseRef } from "./Base";
+import { Base, BaseDef } from "./Base";
 
 /**
  * Reference type for AMA file resources
  */
-export interface AmaFileRef<
+export interface AmaFileDef<
   Path extends string,
   Config extends AmaFileConfig = {},
-> extends BaseRef<Path, AmaFile<any>, "file"> {
+> extends BaseDef<Path, AmaFile<any>, "file"> {
   /** Configuration for the file */
   structure: {
     __amatype: "AmaFileDef";
@@ -21,7 +21,7 @@ export interface AmaFileConfig {
   contentType?: string;
 }
 
-export type AmaFile<Ref extends AmaFileRef<string, AmaFileConfig>> = Base<
+export type AmaFile<Ref extends AmaFileDef<string, AmaFileConfig>> = Base<
   "AmaFile",
   Ref["structure"]["__config"]
 > & {

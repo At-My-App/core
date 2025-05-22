@@ -1,11 +1,11 @@
-import { Base, BaseRef } from "./Base";
+import { Base, BaseDef } from "./Base";
 
-export interface AmaContentRef<Path extends string, D>
-  extends BaseRef<Path, AmaContent<D, any>, "content"> {
+export interface AmaContentDef<Path extends string, D>
+  extends BaseDef<Path, AmaContent<D, any>, "content"> {
   structure: D;
 }
 
-export interface AmaContent<D, Ref extends AmaContentRef<string, D>>
+export interface AmaContent<D, Ref extends AmaContentDef<string, D>>
   extends Base<"AmaContent", Ref["structure"]> {
   data: D;
 }

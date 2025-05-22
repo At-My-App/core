@@ -1,6 +1,5 @@
 import { AmaEvent } from "../definitions/AmaEvent";
-import { AmaFile, AmaFileRef } from "../definitions/AmaFile";
-import { BaseRef } from "../definitions/Base";
+import { BaseDef } from "../definitions/Base";
 
 export type AtMyAppClient = {
   collections: CollectionsClient;
@@ -16,7 +15,7 @@ export type CollectionsClient = {
     path: string,
     options?: CollectionsGetOptions
   ) => Promise<unknown>;
-  get<Ref extends BaseRef<string, unknown, string>>(
+  get<Ref extends BaseDef<string, unknown, string>>(
     path: Ref["path"],
     mode: Ref["type"],
     options?: CollectionsGetOptions

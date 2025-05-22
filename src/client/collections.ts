@@ -5,7 +5,7 @@ import {
 } from "./clientTypes";
 import { createFetch } from "@better-fetch/fetch";
 import { cleanPath } from "./utils/cleanPath";
-import { AmaFile, AmaFileRef } from "../definitions/AmaFile";
+import { AmaFile, AmaFileDef } from "../definitions/AmaFile";
 import { BaseRef } from "../definitions/Base";
 import { AmaContent } from "../definitions/AmaContent";
 import { AmaImage } from "../definitions/AmaImage";

@@ -1,4 +1,4 @@
-export interface BaseRef<
+export interface BaseDef<
   Path extends string,
   ReturnType = unknown,
   Type extends string = string,
@@ -6,6 +6,7 @@ export interface BaseRef<
   path: Path;
   returnType: ReturnType;
   type: Type;
+  __is_ATMYAPP_Object: true;
 }
 
 export interface Base<Type extends string, Config extends any> {
