@@ -6,7 +6,7 @@ import {
 import { createFetch } from "@better-fetch/fetch";
 import { cleanPath } from "./utils/cleanPath";
 import { AmaFile, AmaFileDef } from "../definitions/AmaFile";
-import { BaseRef } from "../definitions/Base";
+import { BaseDef } from "../definitions/Base";
 import { AmaContent } from "../definitions/AmaContent";
 import { AmaImage } from "../definitions/AmaImage";
 
@@ -120,7 +120,7 @@ export const createCollectionsClient = (
     };
   };
 
-  const get = async <Ref extends BaseRef<string, unknown, string>>(
+  const get = async <Ref extends BaseDef<string, unknown, string>>(
     path: Ref["path"],
     mode: Ref["type"] = "file"
   ): Promise<Ref["returnType"]> => {
