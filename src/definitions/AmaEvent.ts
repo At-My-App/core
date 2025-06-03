@@ -1,4 +1,4 @@
-export type AmaEventDef<ID extends string, Columns extends string[]> = {
+export type AmaEventDef<ID extends string> = {
   /**
    * The unique ID of the event
    */
@@ -6,12 +6,11 @@ export type AmaEventDef<ID extends string, Columns extends string[]> = {
   /**
    * The columns names of the event
    */
-  columns: Columns;
-  type: "event";
+  type: "basic_event";
   __is_ATMYAPP_Object: true;
 };
 
-export type AmaEvent<ID extends string, Columns extends string[]> = {
-  ref: AmaEventDef<ID, Columns>;
-  data: Record<Columns[number], string>;
+export type AmaEvent<ID extends string> = {
+  ref: AmaEventDef<ID>;
+  data: Record<string, string>;
 };

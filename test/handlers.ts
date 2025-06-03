@@ -18,6 +18,62 @@ export const handlers = [
     return HttpResponse.json(file_json);
   }),
 
+  // Analytics handlers
+  // Handler for basic event tracking
+  http.post(`${API_BASE_URL}/analytics/:eventId/analytics`, ({ params }) => {
+    const eventId = params.eventId as string;
+
+    // Simulate different responses based on event ID
+    if (eventId === "error_event") {
+      return new HttpResponse(
+        JSON.stringify({ error: "Event tracking failed" }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    return HttpResponse.json({ success: true, eventId });
+  }),
+
+  // Handler for custom event tracking
+  http.post(
+    `${API_BASE_URL}/analytics/:eventId`,
+    async ({ request, params }) => {
+      const eventId = params.eventId as string;
+      const body = (await request.json()) as any;
+
+      // Simulate different responses based on event ID
+      if (eventId === "custom_error_event") {
+        return new HttpResponse(
+          JSON.stringify({ error: "Custom event tracking failed" }),
+          {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      // Validate data size and count for testing
+      if (body.blobs && body.blobs.length > 20) {
+        return new HttpResponse(
+          JSON.stringify({ error: "Too many data entries" }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      return HttpResponse.json({
+        success: true,
+        eventId,
+        receivedData: body.blobs,
+      });
+    }
+  ),
+
   // Default handler for paths not explicitly defined
   http.get(`${API_BASE_URL}/storage/f/:path`, ({ params }) => {
     const path = params.path as string;

@@ -59,10 +59,14 @@ const client = createAtMyAppClient({
 const content = await client.collections.get("/blog/latest-post", "content");
 console.log(content.data);
 
-// Track analytics
-await client.analytics.trackEvent("page_view", {
-  page: "/blog/latest-post",
-  user_id: "user123",
+// Track basic events (server automatically collects IP, location, etc.)
+await client.analytics.trackEvent("page_view");
+
+// Track custom events with detailed data
+await client.analytics.trackCustomEvent("purchase", {
+  product_id: "prod_123",
+  amount: "99.99",
+  user_id: "user456",
 });
 ```
 
@@ -135,11 +139,49 @@ const rawData = await client.collections.getFromPath("/api/config");
 
 ### Analytics API
 
-Track user interactions and content performance with the built-in analytics system.
+Track user interactions and content performance with the built-in analytics system. AtMyApp provides two types of event tracking:
 
-#### `client.analytics.trackEvent<T>(eventId, data)`
+1. **Basic Events** - Simple occurrence tracking where the server automatically collects metadata (IP, location, user agent, etc.)
+2. **Custom Events** - Structured data tracking with your own custom fields
 
-Track custom events with structured data.
+#### `client.analytics.trackEvent<T>(eventId)`
+
+Track basic events for simple occurrence tracking. Perfect for page views, user actions, and other events where you only need to know that something happened. The server automatically collects:
+
+- 🌍 IP address and geographic location
+- 🖥️ User agent and device information
+- ⏰ Precise timestamp
+- 🔗 Referrer information
+- 📱 Screen resolution and viewport
+
+**Parameters:**
+
+- `eventId` (string) - Unique identifier for the event type
+
+**Examples:**
+
+```typescript
+// 📄 Track page views
+await client.analytics.trackEvent("page_view");
+
+// 👤 Track user authentication
+await client.analytics.trackEvent("user_login");
+await client.analytics.trackEvent("user_logout");
+
+// 🖱️ Track user interactions
+await client.analytics.trackEvent("button_click");
+await client.analytics.trackEvent("form_submit");
+await client.analytics.trackEvent("download_start");
+
+// 📊 Track content engagement
+await client.analytics.trackEvent("video_play");
+await client.analytics.trackEvent("article_share");
+await client.analytics.trackEvent("newsletter_signup");
+```
+
+#### `client.analytics.trackCustomEvent<T>(eventId, data)`
+
+Track custom events with structured data for detailed analytics and business intelligence.
 
 **Parameters:**
 
@@ -149,32 +191,89 @@ Track custom events with structured data.
 **Examples:**
 
 ```typescript
-// 📊 Track page views
-await client.analytics.trackEvent("page_view", {
-  page: "/blog/ai-content-management",
-  referrer: "google.com",
-  user_agent: navigator.userAgent,
-});
-
 // 🛒 Track e-commerce events
-await client.analytics.trackEvent("purchase", {
+await client.analytics.trackCustomEvent("purchase", {
   product_id: "prod_123",
   amount: "99.99",
   currency: "USD",
   user_id: "user_456",
+  category: "electronics",
 });
 
-// 📝 Track content interactions
-await client.analytics.trackEvent("content_engagement", [
+// 🎯 Track marketing campaigns
+await client.analytics.trackCustomEvent("campaign_click", {
+  campaign_id: "summer_sale_2024",
+  source: "email",
+  medium: "newsletter",
+  content: "hero_banner",
+});
+
+// 📝 Track content performance
+await client.analytics.trackCustomEvent("content_engagement", [
   "blog_post_123",
-  "scroll_50_percent",
-  "2024-01-15T10:30:00Z",
+  "scroll_75_percent",
+  "5_minute_read_time",
+  "social_share",
 ]);
 ```
 
 ## 🎨 Type Definitions
 
 AtMyApp Core provides comprehensive TypeScript definitions for type-safe development.
+
+### Basic Event Types
+
+```typescript
+import { AmaEventDef, AmaEvent } from "@atmyapp/core";
+
+// Define basic events for simple occurrence tracking
+const pageViewEvent: AmaEventDef<"page_view"> = {
+  id: "page_view",
+  type: "basic_event",
+  __is_ATMYAPP_Object: true,
+};
+
+const userLoginEvent: AmaEventDef<"user_login"> = {
+  id: "user_login",
+  type: "basic_event",
+  __is_ATMYAPP_Object: true,
+};
+
+// Type-safe basic event tracking
+await client.analytics.trackEvent("page_view");
+await client.analytics.trackEvent("user_login");
+```
+
+### Custom Event Types
+
+```typescript
+import { AmaCustomEventDef } from "@atmyapp/core";
+
+// Define custom events with structured data
+type PageViewEvent = AmaCustomEventDef<
+  "page_view_detailed",
+  ["page", "referrer", "session_id"]
+>;
+
+type PurchaseEvent = AmaCustomEventDef<
+  "purchase",
+  ["product_id", "amount", "user_id", "category"]
+>;
+
+// Type-safe custom event tracking
+await client.analytics.trackCustomEvent<PageViewEvent>("page_view_detailed", {
+  page: "/products/laptop",
+  referrer: "google.com",
+  session_id: "sess_123",
+});
+
+await client.analytics.trackCustomEvent<PurchaseEvent>("purchase", {
+  product_id: "laptop_pro_15",
+  amount: "1299.99",
+  user_id: "user_789",
+  category: "electronics",
+});
+```
 
 ### Content Types
 
@@ -222,30 +321,84 @@ const heroImage = await client.collections.get<HeroImageDef>(
 );
 ```
 
-### Event Types
+## 💡 Examples
+
+### 📊 Analytics Implementation Patterns
+
+#### Basic Event Tracking for SPA
 
 ```typescript
-import { AmaEventDef } from "@atmyapp/core";
+// Track page navigation in Single Page Applications
+function trackPageView(path: string) {
+  // Basic event - server collects all metadata automatically
+  await client.analytics.trackEvent("page_view");
 
-// Define custom events
-type PageViewEvent = AmaEventDef<
-  "page_view",
-  ["page", "referrer", "timestamp"]
->;
-type PurchaseEvent = AmaEventDef<
-  "purchase",
-  ["product_id", "amount", "user_id"]
->;
+  // Optional: Custom event for detailed analytics
+  await client.analytics.trackCustomEvent("page_view_detailed", {
+    path,
+    timestamp: new Date().toISOString(),
+    viewport: `${window.innerWidth}x${window.innerHeight}`,
+  });
+}
 
-// Type-safe event tracking
-await client.analytics.trackEvent<PageViewEvent>("page_view", {
-  page: "/home",
-  referrer: "google.com",
-  timestamp: new Date().toISOString(),
+// Usage in your router
+router.afterEach((to) => {
+  trackPageView(to.path);
 });
 ```
 
-## 💡 Examples
+#### E-commerce Event Tracking
+
+```typescript
+// Basic events for simple funnel tracking
+await client.analytics.trackEvent("product_view");
+await client.analytics.trackEvent("add_to_cart");
+await client.analytics.trackEvent("checkout_start");
+await client.analytics.trackEvent("purchase_complete");
+
+// Custom events for business intelligence
+await client.analytics.trackCustomEvent("product_interaction", {
+  product_id: "laptop_pro_15",
+  action: "view",
+  category: "electronics",
+  price: "1299.99",
+  in_stock: "true",
+});
+
+await client.analytics.trackCustomEvent("purchase", {
+  order_id: "order_789",
+  total_amount: "1399.98",
+  items_count: "2",
+  payment_method: "credit_card",
+  shipping_method: "express",
+});
+```
+
+#### Content Engagement Tracking
+
+```typescript
+// Basic engagement events
+await client.analytics.trackEvent("article_start");
+await client.analytics.trackEvent("video_play");
+await client.analytics.trackEvent("form_submit");
+
+// Detailed engagement metrics
+await client.analytics.trackCustomEvent("content_engagement", {
+  content_id: "blog_post_123",
+  content_type: "article",
+  engagement_type: "scroll_milestone",
+  scroll_percentage: "75",
+  time_spent: "180", // seconds
+});
+
+// Social sharing tracking
+await client.analytics.trackCustomEvent("social_share", {
+  content_id: "blog_post_123",
+  platform: "twitter",
+  share_type: "native_button",
+  user_id: "user_456",
+});
+```
 
 ### 🏪 E-commerce Product Catalog
 
@@ -268,17 +421,21 @@ const products = await client.collections.get<ProductDef>(
 );
 
 if (!products.isError) {
-  products.data.forEach((product) => {
+  products.data.forEach(async (product) => {
     console.log(`${product.name}: $${product.price}`);
+
+    // Track product view with basic event
+    await client.analytics.trackEvent("product_view");
+
+    // Track detailed product analytics
+    await client.analytics.trackCustomEvent("product_interaction", {
+      product_id: product.id,
+      action: "list_view",
+      category: "catalog_browse",
+      price: product.price.toString(),
+    });
   });
 }
-
-// Track product views
-await client.analytics.trackEvent("product_view", {
-  product_id: "prod_123",
-  category: "electronics",
-  price: "299.99",
-});
 ```
 
 ### 📰 Blog Management
@@ -297,11 +454,13 @@ interface BlogPost {
 // Fetch featured posts
 const featuredPosts = await client.collections.get("/blog/featured", "content");
 
-// Track reading engagement
-await client.analytics.trackEvent("article_read", {
-  article_id: "blog_post_123",
-  reading_time: "5_minutes",
-  completion_rate: "80_percent",
+// Track blog engagement
+await client.analytics.trackEvent("blog_page_view");
+
+await client.analytics.trackCustomEvent("content_discovery", {
+  content_type: "blog_post",
+  discovery_method: "featured_section",
+  post_count: featuredPosts.data?.length.toString() || "0",
 });
 ```
 
@@ -316,6 +475,15 @@ const galleryImages = await Promise.all([
 ]);
 
 const validImages = galleryImages.filter((img) => !img.isError);
+
+// Track gallery interaction
+await client.analytics.trackEvent("gallery_view");
+
+await client.analytics.trackCustomEvent("media_engagement", {
+  gallery_id: "homepage_gallery",
+  images_loaded: validImages.length.toString(),
+  interaction_type: "initial_load",
+});
 ```
 
 ### 🔍 Error Handling
@@ -324,6 +492,17 @@ const validImages = galleryImages.filter((img) => !img.isError);
 const content = await client.collections.get("/blog/post", "content");
 
 if (content.isError) {
+  // Track error occurrence
+  await client.analytics.trackEvent("content_error");
+
+  // Track detailed error analytics
+  await client.analytics.trackCustomEvent("error_tracking", {
+    error_type: "content_fetch",
+    status_code: content.errorStatus?.toString() || "unknown",
+    resource_path: "/blog/post",
+    error_message: content.errorMessage || "unknown_error",
+  });
+
   switch (content.errorStatus) {
     case 404:
       console.log("Content not found");
@@ -335,7 +514,8 @@ if (content.isError) {
       console.log(`Error: ${content.errorMessage}`);
   }
 } else {
-  // Content loaded successfully
+  // Track successful content load
+  await client.analytics.trackEvent("content_load_success");
   console.log(content.data);
 }
 ```
@@ -428,6 +608,22 @@ export const getStaticProps: GetStaticProps = async ({ params }) => {
     revalidate: 60, // ISR
   };
 };
+
+// Track page views in _app.tsx
+export default function App({ Component, pageProps }: AppProps) {
+  const router = useRouter();
+
+  useEffect(() => {
+    const handleRouteChange = () => {
+      atmyapp.analytics.trackEvent("page_view");
+    };
+
+    router.events.on('routeChangeComplete', handleRouteChange);
+    return () => router.events.off('routeChangeComplete', handleRouteChange);
+  }, [router.events]);
+
+  return <Component {...pageProps} />;
+}
 ```
 
 ### React
@@ -448,8 +644,12 @@ export function useContent<T>(path: string) {
       .then((result) => {
         if (result.isError) {
           setError(result.errorMessage || "Failed to load content");
+          // Track content errors
+          atmyapp.analytics.trackEvent("content_error");
         } else {
           setData(result.data);
+          // Track successful content loads
+          atmyapp.analytics.trackEvent("content_load_success");
         }
       })
       .finally(() => setLoading(false));
@@ -457,22 +657,69 @@ export function useContent<T>(path: string) {
 
   return { data, loading, error };
 }
+
+// hooks/useAnalytics.ts
+export function useAnalytics() {
+  return {
+    trackEvent: atmyapp.analytics.trackEvent,
+    trackCustomEvent: atmyapp.analytics.trackCustomEvent,
+  };
+}
 ```
 
 ## 🚨 Rate Limits & Best Practices
 
 ### Analytics Limits
 
-- **Maximum 20 data entries** per event
-- **Maximum 5KB total size** for all string values
+- **Basic Events**: No data size limits (only event ID required)
+- **Custom Events**: Maximum 20 data entries per event
+- **Custom Events**: Maximum 5KB total size for all string values
 - Events exceeding limits will be rejected with a warning
+
+### When to Use Basic vs Custom Events
+
+#### ✅ Use Basic Events For:
+
+- Page views and navigation
+- Simple user actions (clicks, form submissions)
+- Authentication events (login, logout)
+- Content interactions (video play, download)
+- Error occurrences
+- Feature usage tracking
+
+#### ✅ Use Custom Events For:
+
+- E-commerce transactions with details
+- A/B testing and experiments
+- Performance monitoring with metrics
+- User journey tracking with context
+- Business intelligence and reporting
+- Campaign and marketing attribution
 
 ### Performance Tips
 
-- ✅ Cache content responses when possible
-- ✅ Use preview mode only during development
-- ✅ Batch analytics events when appropriate
-- ✅ Handle errors gracefully with fallback content
+- ✅ **Prefer basic events** for high-frequency actions
+- ✅ **Cache content responses** when possible
+- ✅ **Use preview mode** only during development
+- ✅ **Batch analytics events** when appropriate
+- ✅ **Handle errors gracefully** with fallback content
+- ✅ **Track errors** to monitor API health
+
+```typescript
+// Good: Use basic events for frequent actions
+document.addEventListener("click", () => {
+  client.analytics.trackEvent("page_interaction");
+});
+
+// Good: Use custom events for important business data
+async function handlePurchase(orderData) {
+  await client.analytics.trackCustomEvent("purchase", {
+    order_id: orderData.id,
+    amount: orderData.total,
+    item_count: orderData.items.length.toString(),
+  });
+}
+```
 
 ## 🤝 Contributing
 

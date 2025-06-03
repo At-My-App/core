@@ -1,3 +1,4 @@
+import { AmaCustomEvent } from "../definitions/AmaCustomEvent";
 import { AmaEvent } from "../definitions/AmaEvent";
 import { BaseDef } from "../definitions/Base";
 
@@ -30,8 +31,12 @@ export type AtMyAppClientOptions = {
 };
 
 export type AnalyticsClient = {
-  trackEvent: <Event extends AmaEvent<string, string[]>>(
+  trackCustomEvent: <Event extends AmaCustomEvent<string, string[]>>(
     eventId: Event["ref"]["id"],
     data: Record<Event["ref"]["columns"][number], any>
+  ) => Promise<boolean>;
+
+  trackEvent: <Event extends AmaEvent<string>>(
+    eventId: Event["ref"]["id"]
   ) => Promise<boolean>;
 };
