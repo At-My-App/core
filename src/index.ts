@@ -14,3 +14,4 @@ export {
 export { AmaEvent, AmaEventDef } from "./definitions/AmaEvent";
 export { AmaFile, AmaFileDef } from "./definitions/AmaFile";
 export { AmaImage, AmaImageDef } from "./definitions/AmaImage";
+export { AmaIcon, AmaIconDef } from "./definitions/AmaIcon";

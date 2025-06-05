@@ -1,21 +1,19 @@
 import { createFetch } from "@better-fetch/fetch";
-import { AmaCustomEvent } from "../definitions/AmaCustomEvent";
-import { AmaEvent } from "../definitions/AmaEvent";
+import {
+  AmaCustomEvent,
+  AmaCustomEventDef,
+} from "../definitions/AmaCustomEvent";
+import { AmaEvent, AmaEventDef } from "../definitions/AmaEvent";
 import { AtMyAppClientOptions } from "./clientTypes";
 
 export interface AnalyticsClient {
-  trackCustomEvent<
-    Event extends AmaCustomEvent<string, string[]> = AmaCustomEvent<
-      string,
-      string[]
-    >,
-  >(
-    eventId: Event["ref"]["id"],
-    data: Record<Event["ref"]["columns"][number], string> | string[]
+  trackCustomEvent<Event extends AmaCustomEventDef<string, string[]>>(
+    eventId: Event["id"],
+    data: Record<Event["columns"][number], string> | string[]
   ): Promise<boolean>;
 
-  trackEvent<Event extends AmaEvent<string> = AmaEvent<string>>(
-    eventId: Event["ref"]["id"]
+  trackEvent<Event extends AmaEventDef<string>>(
+    eventId: Event["id"]
   ): Promise<boolean>;
 }
 
@@ -31,10 +29,10 @@ export const createAnalyticsClient = (
   });
 
   const trackCustomEvent = async <
-    Event extends AmaCustomEvent<string, string[]>,
+    Event extends AmaCustomEventDef<string, string[]>,
   >(
-    eventId: Event["ref"]["id"],
-    data: Record<Event["ref"]["columns"][number], string> | string[]
+    eventId: Event["id"],
+    data: Record<Event["columns"][number], string> | string[]
   ) => {
     // Check the number of key-value pairs or array elements
     const dataKeys = Array.isArray(data)
@@ -102,8 +100,8 @@ export const createAnalyticsClient = (
     }
   };
 
-  const trackEvent = async <Event extends AmaEvent<string>>(
-    eventId: Event["ref"]["id"]
+  const trackEvent = async <Event extends AmaEventDef<string>>(
+    eventId: Event["id"]
   ) => {
     try {
       const response = await $fetch(`/${eventId}/analytics`, {

@@ -122,6 +122,12 @@ if (!heroImage.isError) {
   console.log(heroImage.src); // Optimized image URL
 }
 
+// 🎨 Fetch icons
+const logoIcon = await client.collections.get("/icons/logo", "icon");
+if (!logoIcon.isError) {
+  console.log(logoIcon.src); // Icon URL
+}
+
 // 📁 Fetch raw files
 const document = await client.collections.get("/docs/manual.pdf", "file");
 if (!document.isError) {
@@ -321,6 +327,20 @@ const heroImage = await client.collections.get<HeroImageDef>(
 );
 ```
 
+### Icon Types
+
+```typescript
+import { AmaIconDef } from "@atmyapp/core";
+
+// Define icon (simpler than images, no configuration needed)
+type LogoIconDef = AmaIconDef<"/icons/logo">;
+
+const logoIcon = await client.collections.get<LogoIconDef>(
+  "/icons/logo",
+  "icon"
+);
+```
+
 ## 💡 Examples
 
 ### 📊 Analytics Implementation Patterns
@@ -474,7 +494,15 @@ const galleryImages = await Promise.all([
   client.collections.get("/gallery/image-3", "image"),
 ]);
 
+// Fetch icons for UI elements
+const uiIcons = await Promise.all([
+  client.collections.get("/icons/menu", "icon"),
+  client.collections.get("/icons/search", "icon"),
+  client.collections.get("/icons/user", "icon"),
+]);
+
 const validImages = galleryImages.filter((img) => !img.isError);
+const validIcons = uiIcons.filter((icon) => !icon.isError);
 
 // Track gallery interaction
 await client.analytics.trackEvent("gallery_view");

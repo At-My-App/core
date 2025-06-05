@@ -115,6 +115,26 @@ describe("Collections with MSW", () => {
     expect(data.isError).toBe(false);
   });
 
+  it("should fetch icon type data", async () => {
+    const client = createAtMyAppClient({
+      apiKey: "test",
+      baseUrl: API_BASE_URL,
+    });
+
+    const iconSrc = "https://example.com/icon.svg";
+
+    server.use(
+      http.get(`${API_BASE_URL}/storage/f/icon.svg`, () => {
+        return HttpResponse.json(iconSrc);
+      })
+    );
+
+    const data = await client.collections.get("/icon.svg", "icon");
+    expect(data.__amatype).toBe("AmaIcon");
+    expect(data.src).toEqual(iconSrc);
+    expect(data.isError).toBe(false);
+  });
+
   it("should pass preview key when provided", async () => {
     const previewKey = "preview-123";
     let requestUrl;

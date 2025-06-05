@@ -9,6 +9,7 @@ import { AmaFile, AmaFileDef } from "../definitions/AmaFile";
 import { BaseDef } from "../definitions/Base";
 import { AmaContent } from "../definitions/AmaContent";
 import { AmaImage } from "../definitions/AmaImage";
+import { AmaIcon } from "../definitions/AmaIcon";
 
 export const createCollectionsClient = (
   clientOptions: AtMyAppClientOptions
@@ -120,6 +121,22 @@ export const createCollectionsClient = (
     };
   };
 
+  const getIcon = async (path: string): Promise<AmaIcon<any>> => {
+    const response = await getFile(path);
+
+    if (response.isError) {
+      return response as any;
+    }
+
+    return {
+      __amatype: "AmaIcon",
+      __config: {},
+      isError: false,
+      errorMessage: undefined,
+      src: response.src as any,
+    };
+  };
+
   const get = async <Ref extends BaseDef<string, unknown, string>>(
     path: Ref["path"],
     mode: Ref["type"] = "file"
@@ -136,11 +153,26 @@ export const createCollectionsClient = (
       return getImage(path);
     }
 
+    if (mode === "icon") {
+      return getIcon(path);
+    }
+
     throw new Error(`Unsupported mode: ${mode}`);
+  };
+
+  const getStaticUrl = async (path: string) => {
+    const response = await $fetch("/static/:path", {
+      params: {
+        path: cleanPath(path),
+      },
+    });
+
+    return response.data as string;
   };
 
   return {
     getFromPath,
     get,
+    getStaticUrl,
   };
 };

@@ -1,5 +1,8 @@
-import { AmaCustomEvent } from "../definitions/AmaCustomEvent";
-import { AmaEvent } from "../definitions/AmaEvent";
+import {
+  AmaCustomEvent,
+  AmaCustomEventDef,
+} from "../definitions/AmaCustomEvent";
+import { AmaEvent, AmaEventDef } from "../definitions/AmaEvent";
 import { BaseDef } from "../definitions/Base";
 
 export type AtMyAppClient = {
@@ -21,6 +24,7 @@ export type CollectionsClient = {
     mode: Ref["type"],
     options?: CollectionsGetOptions
   ): Promise<Ref["returnType"]>;
+  getStaticUrl: (path: string) => Promise<string>;
 };
 
 export type AtMyAppClientOptions = {
@@ -31,12 +35,12 @@ export type AtMyAppClientOptions = {
 };
 
 export type AnalyticsClient = {
-  trackCustomEvent: <Event extends AmaCustomEvent<string, string[]>>(
-    eventId: Event["ref"]["id"],
-    data: Record<Event["ref"]["columns"][number], any>
+  trackCustomEvent: <Event extends AmaCustomEventDef<string, string[]>>(
+    eventId: Event["id"],
+    data: Record<Event["columns"][number], any> | string[]
   ) => Promise<boolean>;
 
-  trackEvent: <Event extends AmaEvent<string>>(
-    eventId: Event["ref"]["id"]
+  trackEvent: <Event extends AmaEventDef<string>>(
+    eventId: Event["id"]
   ) => Promise<boolean>;
 };
