@@ -104,7 +104,7 @@ export const createAnalyticsClient = (
     eventId: Event["id"]
   ) => {
     try {
-      const response = await $fetch(`/${eventId}/analytics`, {
+      const response = await $fetch(`/${eventId}`, {
         method: "POST",
         body: {},
       });
