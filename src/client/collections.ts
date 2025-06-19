@@ -161,13 +161,22 @@ export const createCollectionsClient = (
   };
 
   const getStaticUrl = async (path: string) => {
-    const response = await $fetch("/static/:path", {
+    const response = await $fetch<{
+      success: boolean;
+      data: {
+        staticUrl: string;
+      };
+    }>("/static/:path", {
       params: {
         path: cleanPath(path),
       },
     });
 
-    return response.data as string;
+    if (response.data && response.data.success) {
+      return response.data.data.staticUrl;
+    }
+
+    throw new Error("Failed to get static URL");
   };
 
   return {
