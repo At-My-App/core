@@ -106,7 +106,9 @@ export const createAnalyticsClient = (
     try {
       const response = await $fetch(`/${eventId}`, {
         method: "POST",
-        body: {},
+        body: {
+          basic: true,
+        },
       });
 
       if (!response.error) {

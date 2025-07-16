@@ -18,36 +18,17 @@ export const handlers = [
     return HttpResponse.json(file_json);
   }),
 
-  // Analytics handlers
-  // Handler for basic event tracking
-  http.post(`${API_BASE_URL}/analytics/:eventId/analytics`, ({ params }) => {
-    const eventId = params.eventId as string;
-
-    // Simulate different responses based on event ID
-    if (eventId === "error_event") {
-      return new HttpResponse(
-        JSON.stringify({ error: "Event tracking failed" }),
-        {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    return HttpResponse.json({ success: true, eventId });
-  }),
-
-  // Handler for custom event tracking
+  // Unified analytics handler (basic & custom)
   http.post(
     `${API_BASE_URL}/analytics/:eventId`,
     async ({ request, params }) => {
       const eventId = params.eventId as string;
       const body = (await request.json()) as any;
 
-      // Simulate different responses based on event ID
-      if (eventId === "custom_error_event") {
+      // Simulate error scenarios
+      if (eventId === "error_event" || eventId === "custom_error_event") {
         return new HttpResponse(
-          JSON.stringify({ error: "Custom event tracking failed" }),
+          JSON.stringify({ error: "Event tracking failed" }),
           {
             status: 500,
             headers: { "Content-Type": "application/json" },
@@ -55,7 +36,7 @@ export const handlers = [
         );
       }
 
-      // Validate data size and count for testing
+      // Custom event validation
       if (body.blobs && body.blobs.length > 20) {
         return new HttpResponse(
           JSON.stringify({ error: "Too many data entries" }),
@@ -66,11 +47,7 @@ export const handlers = [
         );
       }
 
-      return HttpResponse.json({
-        success: true,
-        eventId,
-        receivedData: body.blobs,
-      });
+      return HttpResponse.json({ success: true, eventId });
     }
   ),
 
@@ -101,6 +78,19 @@ export const handlers = [
     return HttpResponse.json({
       path,
       data: "Default mock response",
+    });
+  }),
+
+  // Handler for static URL generation
+  http.get(`${API_BASE_URL}/storage/static/:path`, ({ params }) => {
+    const path = params.path as string;
+
+    // Mock static URL generation
+    return HttpResponse.json({
+      success: true,
+      data: {
+        staticUrl: `https://cdn.example.com/${path}`,
+      },
     });
   }),
 ];

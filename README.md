@@ -26,6 +26,7 @@
 ✨ **AI-Powered Content Management** - Update content with natural language commands  
 🔄 **Real-time Updates** - Instant content changes without code deployments  
 📊 **Built-in Analytics** - Track content performance and user engagement  
+📝 **User Submissions** - Collect forms and user-generated content effortlessly
 🖼️ **Media Optimization** - Automatic image optimization and responsive sizing  
 🎯 **Type-Safe** - Full TypeScript support with comprehensive type definitions  
 ⚡ **Lightweight** - Minimal dependencies for optimal performance  
@@ -36,10 +37,8 @@
 ```bash
 # npm
 npm install @atmyapp/core
-
 # yarn
 yarn add @atmyapp/core
-
 # pnpm
 pnpm add @atmyapp/core
 ```
@@ -47,7 +46,7 @@ pnpm add @atmyapp/core
 ## 🚀 Quick Start
 
 ```typescript
-import { createAtMyAppClient } from "@atmyapp/core";
+import { createAtMyAppClient, AmaContentDef } from "@atmyapp/core";
 
 // Initialize the client
 const client = createAtMyAppClient({
@@ -55,19 +54,42 @@ const client = createAtMyAppClient({
   baseUrl: "https://api.atmyapp.com",
 });
 
+// Define your content structure
+type JokeOfTheDay = {
+  joke: string;
+  punchline: string;
+};
+
+// Mark the content as a JSON file
+type JokeOfTheDayDef = AmaContentDef<"joke.json", JokeOfTheDay>;
+
+// Define image type
+type JokeImageDef = AmaImageDef<
+  "joke-image",
+  {
+    maxSize: { width: 1920; height: 1080 };
+  }
+>;
+
+// Define event type
+type JokeViewEvent = AmaEventDef<"joke_view">;
+
+// Export the files that shoul be managed by AtMyApp
+export type ATMYAPP = [JokeOfTheDayDef, JokeImageDef, JokeViewEvent];
+
 // Fetch content
-const content = await client.collections.get("/blog/latest-post", "content");
+const content = await client.collections.get<JokeOfTheDayDef>(
+  "joke.json",
+  "content"
+);
 console.log(content.data);
 
-// Track basic events (server automatically collects IP, location, etc.)
-await client.analytics.trackEvent("page_view");
+// Get the image as static URL
+const imageUrl = await client.collections.getStaticUrl("joke-image");
+console.log(imageUrl);
 
-// Track custom events with detailed data
-await client.analytics.trackCustomEvent("purchase", {
-  product_id: "prod_123",
-  amount: "99.99",
-  user_id: "user456",
-});
+// Track basic events (server automatically collects IP, location, etc.)
+await client.analytics.trackEvent<JokeViewEvent>("joke_view");
 ```
 
 ## 📚 API Reference
@@ -83,13 +105,13 @@ Creates a new AtMyApp client instance.
 - `apiKey` (string) - Your AtMyApp API key
 - `baseUrl` (string) - The base URL for the AtMyApp API
 - `customFetch` (optional) - Custom fetch implementation
-- `previewKey` (optional) - Preview key for draft content
+- `previewKey` (optional) - Preview key for draft content (when using preview mode we add the query parameter `previewKey` to the website URL). You can check the website URL to see if it contains the `previewKey` query parameter (in the future we will automatically check the URL for the preview key)
 
 ```typescript
 const client = createAtMyAppClient({
   apiKey: process.env.ATMYAPP_API_KEY!,
   baseUrl: "https://api.atmyapp.com",
-  previewKey: "preview-123", // Optional: for preview mode
+  previewKey: "preview-123", // Optional: for preview mode (got from window.location.search)
 });
 ```
 
@@ -107,31 +129,17 @@ Fetch typed content from a specific path.
 - `mode` ('file' | 'content' | 'image') - The type of content to fetch
 - `options` (optional) - Additional options including preview key
 
+**Generic type:**
+
+- `T` - The type of the content to fetch (prefilled with the path, content type and return type)
+
 **Examples:**
 
 ```typescript
 // 📄 Fetch content data
-const blogPost = await client.collections.get("/blog/my-post", "content");
+const blogPost = await client.collections.get("/blog/my-post.json", "content");
 if (!blogPost.isError) {
   console.log(blogPost.data); // Your content data
-}
-
-// 🖼️ Fetch optimized images
-const heroImage = await client.collections.get("/images/hero", "image");
-if (!heroImage.isError) {
-  console.log(heroImage.src); // Optimized image URL
-}
-
-// 🎨 Fetch icons
-const logoIcon = await client.collections.get("/icons/logo", "icon");
-if (!logoIcon.isError) {
-  console.log(logoIcon.src); // Icon URL
-}
-
-// 📁 Fetch raw files
-const document = await client.collections.get("/docs/manual.pdf", "file");
-if (!document.isError) {
-  console.log(document.src); // File URL
 }
 ```
 
@@ -141,6 +149,14 @@ Fetch raw data from a path without type safety.
 
 ```typescript
 const rawData = await client.collections.getFromPath("/api/config");
+```
+
+#### `client.collections.getStaticUrl(path, options?)`
+
+Get the static URL for an image or file. This is useful for embedding images in your website or prerender your websites at build time.
+
+```typescript
+const imageUrl = await client.collections.getStaticUrl("/images/my-image.png");
 ```
 
 ### Analytics API
@@ -158,7 +174,6 @@ Track basic events for simple occurrence tracking. Perfect for page views, user 
 - 🖥️ User agent and device information
 - ⏰ Precise timestamp
 - 🔗 Referrer information
-- 📱 Screen resolution and viewport
 
 **Parameters:**
 
@@ -167,22 +182,16 @@ Track basic events for simple occurrence tracking. Perfect for page views, user 
 **Examples:**
 
 ```typescript
+import { AmaEventDef } from "@atmyapp/core";
+
+// Define your event types
+type PageViewEvent = AmaEventDef<"page_view">;
+
+// Export the events that should be managed by AtMyApp
+export type ATMYAPP = [PageViewEvent];
+
 // 📄 Track page views
-await client.analytics.trackEvent("page_view");
-
-// 👤 Track user authentication
-await client.analytics.trackEvent("user_login");
-await client.analytics.trackEvent("user_logout");
-
-// 🖱️ Track user interactions
-await client.analytics.trackEvent("button_click");
-await client.analytics.trackEvent("form_submit");
-await client.analytics.trackEvent("download_start");
-
-// 📊 Track content engagement
-await client.analytics.trackEvent("video_play");
-await client.analytics.trackEvent("article_share");
-await client.analytics.trackEvent("newsletter_signup");
+await client.analytics.trackEvent<PageViewEvent>("page_view");
 ```
 
 #### `client.analytics.trackCustomEvent<T>(eventId, data)`
@@ -197,14 +206,16 @@ Track custom events with structured data for detailed analytics and business int
 **Examples:**
 
 ```typescript
-// 🛒 Track e-commerce events
-await client.analytics.trackCustomEvent("purchase", {
-  product_id: "prod_123",
-  amount: "99.99",
-  currency: "USD",
-  user_id: "user_456",
-  category: "electronics",
-});
+import { AmaCustomEventDef } from "@atmyapp/core";
+
+// Define your event types
+type CampaignClickEvent = AmaCustomEventDef<
+  "campaign_click",
+  ["campaign_id", "source", "medium", "content"]
+>;
+
+// Export the events that should be managed by AtMyApp
+export type ATMYAPP = [CampaignClickEvent];
 
 // 🎯 Track marketing campaigns
 await client.analytics.trackCustomEvent("campaign_click", {
@@ -213,73 +224,11 @@ await client.analytics.trackCustomEvent("campaign_click", {
   medium: "newsletter",
   content: "hero_banner",
 });
-
-// 📝 Track content performance
-await client.analytics.trackCustomEvent("content_engagement", [
-  "blog_post_123",
-  "scroll_75_percent",
-  "5_minute_read_time",
-  "social_share",
-]);
 ```
 
 ## 🎨 Type Definitions
 
-AtMyApp Core provides comprehensive TypeScript definitions for type-safe development.
-
-### Basic Event Types
-
-```typescript
-import { AmaEventDef, AmaEvent } from "@atmyapp/core";
-
-// Define basic events for simple occurrence tracking
-const pageViewEvent: AmaEventDef<"page_view"> = {
-  id: "page_view",
-  type: "basic_event",
-  __is_ATMYAPP_Object: true,
-};
-
-const userLoginEvent: AmaEventDef<"user_login"> = {
-  id: "user_login",
-  type: "basic_event",
-  __is_ATMYAPP_Object: true,
-};
-
-// Type-safe basic event tracking
-await client.analytics.trackEvent("page_view");
-await client.analytics.trackEvent("user_login");
-```
-
-### Custom Event Types
-
-```typescript
-import { AmaCustomEventDef } from "@atmyapp/core";
-
-// Define custom events with structured data
-type PageViewEvent = AmaCustomEventDef<
-  "page_view_detailed",
-  ["page", "referrer", "session_id"]
->;
-
-type PurchaseEvent = AmaCustomEventDef<
-  "purchase",
-  ["product_id", "amount", "user_id", "category"]
->;
-
-// Type-safe custom event tracking
-await client.analytics.trackCustomEvent<PageViewEvent>("page_view_detailed", {
-  page: "/products/laptop",
-  referrer: "google.com",
-  session_id: "sess_123",
-});
-
-await client.analytics.trackCustomEvent<PurchaseEvent>("purchase", {
-  product_id: "laptop_pro_15",
-  amount: "1299.99",
-  user_id: "user_789",
-  category: "electronics",
-});
-```
+AtMyApp Core provides comprehensive TypeScript definitions for type-safe development. Additionally, the AtMyApp CLI will generate the type definitions for you and add them to your project.
 
 ### Content Types
 
@@ -298,11 +247,14 @@ interface BlogPost {
 }
 
 // Create a typed content definition
-type BlogPostDef = AmaContentDef<"/blog/posts", BlogPost>;
+type BlogPostDef = AmaContentDef<"/blog/posts.json", BlogPost>;
+
+// Export the content types that should be managed by AtMyApp
+export type ATMYAPP = [BlogPostDef];
 
 // Use with the client
 const post = await client.collections.get<BlogPostDef>(
-  "/blog/posts",
+  "/blog/posts.json",
   "content"
 );
 // post.data is now typed as BlogPost
@@ -324,259 +276,6 @@ type HeroImageDef = AmaImageDef<"/images/hero", HeroImageConfig>;
 const heroImage = await client.collections.get<HeroImageDef>(
   "/images/hero",
   "image"
-);
-```
-
-### Icon Types
-
-```typescript
-import { AmaIconDef } from "@atmyapp/core";
-
-// Define icon (simpler than images, no configuration needed)
-type LogoIconDef = AmaIconDef<"/icons/logo">;
-
-const logoIcon = await client.collections.get<LogoIconDef>(
-  "/icons/logo",
-  "icon"
-);
-```
-
-## 💡 Examples
-
-### 📊 Analytics Implementation Patterns
-
-#### Basic Event Tracking for SPA
-
-```typescript
-// Track page navigation in Single Page Applications
-function trackPageView(path: string) {
-  // Basic event - server collects all metadata automatically
-  await client.analytics.trackEvent("page_view");
-
-  // Optional: Custom event for detailed analytics
-  await client.analytics.trackCustomEvent("page_view_detailed", {
-    path,
-    timestamp: new Date().toISOString(),
-    viewport: `${window.innerWidth}x${window.innerHeight}`,
-  });
-}
-
-// Usage in your router
-router.afterEach((to) => {
-  trackPageView(to.path);
-});
-```
-
-#### E-commerce Event Tracking
-
-```typescript
-// Basic events for simple funnel tracking
-await client.analytics.trackEvent("product_view");
-await client.analytics.trackEvent("add_to_cart");
-await client.analytics.trackEvent("checkout_start");
-await client.analytics.trackEvent("purchase_complete");
-
-// Custom events for business intelligence
-await client.analytics.trackCustomEvent("product_interaction", {
-  product_id: "laptop_pro_15",
-  action: "view",
-  category: "electronics",
-  price: "1299.99",
-  in_stock: "true",
-});
-
-await client.analytics.trackCustomEvent("purchase", {
-  order_id: "order_789",
-  total_amount: "1399.98",
-  items_count: "2",
-  payment_method: "credit_card",
-  shipping_method: "express",
-});
-```
-
-#### Content Engagement Tracking
-
-```typescript
-// Basic engagement events
-await client.analytics.trackEvent("article_start");
-await client.analytics.trackEvent("video_play");
-await client.analytics.trackEvent("form_submit");
-
-// Detailed engagement metrics
-await client.analytics.trackCustomEvent("content_engagement", {
-  content_id: "blog_post_123",
-  content_type: "article",
-  engagement_type: "scroll_milestone",
-  scroll_percentage: "75",
-  time_spent: "180", // seconds
-});
-
-// Social sharing tracking
-await client.analytics.trackCustomEvent("social_share", {
-  content_id: "blog_post_123",
-  platform: "twitter",
-  share_type: "native_button",
-  user_id: "user_456",
-});
-```
-
-### 🏪 E-commerce Product Catalog
-
-```typescript
-interface Product {
-  id: string;
-  name: string;
-  price: number;
-  description: string;
-  images: string[];
-  inStock: boolean;
-}
-
-type ProductDef = AmaContentDef<"/products", Product[]>;
-
-// Fetch all products
-const products = await client.collections.get<ProductDef>(
-  "/products",
-  "content"
-);
-
-if (!products.isError) {
-  products.data.forEach(async (product) => {
-    console.log(`${product.name}: $${product.price}`);
-
-    // Track product view with basic event
-    await client.analytics.trackEvent("product_view");
-
-    // Track detailed product analytics
-    await client.analytics.trackCustomEvent("product_interaction", {
-      product_id: product.id,
-      action: "list_view",
-      category: "catalog_browse",
-      price: product.price.toString(),
-    });
-  });
-}
-```
-
-### 📰 Blog Management
-
-```typescript
-interface BlogPost {
-  title: string;
-  slug: string;
-  content: string;
-  excerpt: string;
-  publishedAt: string;
-  tags: string[];
-  featured: boolean;
-}
-
-// Fetch featured posts
-const featuredPosts = await client.collections.get("/blog/featured", "content");
-
-// Track blog engagement
-await client.analytics.trackEvent("blog_page_view");
-
-await client.analytics.trackCustomEvent("content_discovery", {
-  content_type: "blog_post",
-  discovery_method: "featured_section",
-  post_count: featuredPosts.data?.length.toString() || "0",
-});
-```
-
-### 🖼️ Media Gallery
-
-```typescript
-// Fetch optimized gallery images
-const galleryImages = await Promise.all([
-  client.collections.get("/gallery/image-1", "image"),
-  client.collections.get("/gallery/image-2", "image"),
-  client.collections.get("/gallery/image-3", "image"),
-]);
-
-// Fetch icons for UI elements
-const uiIcons = await Promise.all([
-  client.collections.get("/icons/menu", "icon"),
-  client.collections.get("/icons/search", "icon"),
-  client.collections.get("/icons/user", "icon"),
-]);
-
-const validImages = galleryImages.filter((img) => !img.isError);
-const validIcons = uiIcons.filter((icon) => !icon.isError);
-
-// Track gallery interaction
-await client.analytics.trackEvent("gallery_view");
-
-await client.analytics.trackCustomEvent("media_engagement", {
-  gallery_id: "homepage_gallery",
-  images_loaded: validImages.length.toString(),
-  interaction_type: "initial_load",
-});
-```
-
-### 🔍 Error Handling
-
-```typescript
-const content = await client.collections.get("/blog/post", "content");
-
-if (content.isError) {
-  // Track error occurrence
-  await client.analytics.trackEvent("content_error");
-
-  // Track detailed error analytics
-  await client.analytics.trackCustomEvent("error_tracking", {
-    error_type: "content_fetch",
-    status_code: content.errorStatus?.toString() || "unknown",
-    resource_path: "/blog/post",
-    error_message: content.errorMessage || "unknown_error",
-  });
-
-  switch (content.errorStatus) {
-    case 404:
-      console.log("Content not found");
-      break;
-    case 401:
-      console.log("Invalid API key");
-      break;
-    default:
-      console.log(`Error: ${content.errorMessage}`);
-  }
-} else {
-  // Track successful content load
-  await client.analytics.trackEvent("content_load_success");
-  console.log(content.data);
-}
-```
-
-## 🔧 Configuration
-
-### Environment Variables
-
-```bash
-# .env
-ATMYAPP_API_KEY=your_api_key_here
-ATMYAPP_BASE_URL=https://api.atmyapp.com
-ATMYAPP_PREVIEW_KEY=your_preview_key_here
-```
-
-### Preview Mode
-
-Enable preview mode to see draft content before it's published:
-
-```typescript
-const client = createAtMyAppClient({
-  apiKey: process.env.ATMYAPP_API_KEY!,
-  baseUrl: process.env.ATMYAPP_BASE_URL!,
-  previewKey: process.env.ATMYAPP_PREVIEW_KEY,
-});
-
-// Or pass preview key per request
-const draftContent = await client.collections.get(
-  "/blog/draft-post",
-  "content",
-  {
-    previewKey: "preview-123",
-  }
 );
 ```
 
@@ -603,161 +302,6 @@ const client = createAtMyAppClient({
   },
 });
 ```
-
-## 🌐 Framework Integration
-
-### Next.js
-
-```typescript
-// lib/atmyapp.ts
-import { createAtMyAppClient } from "@atmyapp/core";
-
-export const atmyapp = createAtMyAppClient({
-  apiKey: process.env.ATMYAPP_API_KEY!,
-  baseUrl: process.env.ATMYAPP_BASE_URL!,
-});
-
-// pages/blog/[slug].tsx
-import { GetStaticProps } from "next";
-import { atmyapp } from "../../lib/atmyapp";
-
-export const getStaticProps: GetStaticProps = async ({ params }) => {
-  const post = await atmyapp.collections.get(
-    `/blog/${params?.slug}`,
-    "content"
-  );
-
-  if (post.isError) {
-    return { notFound: true };
-  }
-
-  return {
-    props: { post: post.data },
-    revalidate: 60, // ISR
-  };
-};
-
-// Track page views in _app.tsx
-export default function App({ Component, pageProps }: AppProps) {
-  const router = useRouter();
-
-  useEffect(() => {
-    const handleRouteChange = () => {
-      atmyapp.analytics.trackEvent("page_view");
-    };
-
-    router.events.on('routeChangeComplete', handleRouteChange);
-    return () => router.events.off('routeChangeComplete', handleRouteChange);
-  }, [router.events]);
-
-  return <Component {...pageProps} />;
-}
-```
-
-### React
-
-```typescript
-// hooks/useAtMyApp.ts
-import { useEffect, useState } from "react";
-import { atmyapp } from "../lib/atmyapp";
-
-export function useContent<T>(path: string) {
-  const [data, setData] = useState<T | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    atmyapp.collections
-      .get(path, "content")
-      .then((result) => {
-        if (result.isError) {
-          setError(result.errorMessage || "Failed to load content");
-          // Track content errors
-          atmyapp.analytics.trackEvent("content_error");
-        } else {
-          setData(result.data);
-          // Track successful content loads
-          atmyapp.analytics.trackEvent("content_load_success");
-        }
-      })
-      .finally(() => setLoading(false));
-  }, [path]);
-
-  return { data, loading, error };
-}
-
-// hooks/useAnalytics.ts
-export function useAnalytics() {
-  return {
-    trackEvent: atmyapp.analytics.trackEvent,
-    trackCustomEvent: atmyapp.analytics.trackCustomEvent,
-  };
-}
-```
-
-## 🚨 Rate Limits & Best Practices
-
-### Analytics Limits
-
-- **Basic Events**: No data size limits (only event ID required)
-- **Custom Events**: Maximum 20 data entries per event
-- **Custom Events**: Maximum 5KB total size for all string values
-- Events exceeding limits will be rejected with a warning
-
-### When to Use Basic vs Custom Events
-
-#### ✅ Use Basic Events For:
-
-- Page views and navigation
-- Simple user actions (clicks, form submissions)
-- Authentication events (login, logout)
-- Content interactions (video play, download)
-- Error occurrences
-- Feature usage tracking
-
-#### ✅ Use Custom Events For:
-
-- E-commerce transactions with details
-- A/B testing and experiments
-- Performance monitoring with metrics
-- User journey tracking with context
-- Business intelligence and reporting
-- Campaign and marketing attribution
-
-### Performance Tips
-
-- ✅ **Prefer basic events** for high-frequency actions
-- ✅ **Cache content responses** when possible
-- ✅ **Use preview mode** only during development
-- ✅ **Batch analytics events** when appropriate
-- ✅ **Handle errors gracefully** with fallback content
-- ✅ **Track errors** to monitor API health
-
-```typescript
-// Good: Use basic events for frequent actions
-document.addEventListener("click", () => {
-  client.analytics.trackEvent("page_interaction");
-});
-
-// Good: Use custom events for important business data
-async function handlePurchase(orderData) {
-  await client.analytics.trackCustomEvent("purchase", {
-    order_id: orderData.id,
-    amount: orderData.total,
-    item_count: orderData.items.length.toString(),
-  });
-}
-```
-
-## 🤝 Contributing
-
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
 
 ## 📄 License
 

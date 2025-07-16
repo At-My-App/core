@@ -140,13 +140,10 @@ describe("Collections with MSW", () => {
     let requestUrl;
 
     server.use(
-      http.get(
-        `${API_BASE_URL}/storage/f/:path?amaPreviewKey=preview-123`,
-        ({ request }) => {
-          requestUrl = new URL(request.url);
-          return HttpResponse.json(preview_json);
-        }
-      )
+      http.get(`${API_BASE_URL}/storage/f/:path`, ({ request }) => {
+        requestUrl = new URL(request.url);
+        return HttpResponse.json(preview_json);
+      })
     );
 
     const client = createAtMyAppClient({
@@ -179,6 +176,67 @@ describe("Collections with MSW", () => {
     });
 
     await client.collections.getFromPath("/preview.json");
+    expect(requestUrl.searchParams.get("amaPreviewKey")).toBe(previewKey);
+  });
+
+  it("should fetch a static URL for a given path", async () => {
+    const client = createAtMyAppClient({
+      apiKey: "test",
+      baseUrl: API_BASE_URL,
+    });
+
+    const path = "/image.jpg";
+    const expectedStaticUrl = "https://cdn.example.com/image.jpg";
+
+    const url = await client.collections.getStaticUrl(path);
+    expect(url).toBe(expectedStaticUrl);
+  });
+
+  it("should throw an error when static URL generation fails", async () => {
+    const client = createAtMyAppClient({
+      apiKey: "test",
+      baseUrl: API_BASE_URL,
+    });
+
+    // Override handler with a failure response
+    server.use(
+      http.get(`${API_BASE_URL}/storage/static/broken.jpg`, () => {
+        return new HttpResponse(JSON.stringify({ success: false }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      })
+    );
+
+    await expect(
+      client.collections.getStaticUrl("/broken.jpg")
+    ).rejects.toThrow("Failed to get static URL");
+  });
+
+  it("should fetch a static URL with preview key", async () => {
+    const previewKey = "preview-123";
+    let requestUrl: URL;
+
+    server.use(
+      http.get(`${API_BASE_URL}/storage/static/:path`, ({ request }) => {
+        requestUrl = new URL(request.url);
+        return HttpResponse.json({
+          success: true,
+          data: { staticUrl: "https://cdn.example.com/static/url.jpg" },
+        });
+      })
+    );
+
+    const client = createAtMyAppClient({
+      apiKey: "test",
+      baseUrl: API_BASE_URL,
+    });
+
+    const url = await client.collections.getStaticUrl("/url.jpg", {
+      previewKey,
+    });
+
+    expect(url).toBe("https://cdn.example.com/static/url.jpg");
     expect(requestUrl.searchParams.get("amaPreviewKey")).toBe(previewKey);
   });
 });

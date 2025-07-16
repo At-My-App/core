@@ -39,7 +39,7 @@ describe("Analytics with MSW", () => {
     it("should handle network errors", async () => {
       // Override with a network error for this test
       server.use(
-        http.post(`${API_BASE_URL}/analytics/network_error/analytics`, () => {
+        http.post(`${API_BASE_URL}/analytics/network_error`, () => {
           return HttpResponse.error();
         })
       );
@@ -167,7 +167,7 @@ describe("Analytics with MSW", () => {
   describe("Error handling and edge cases", () => {
     it("should handle malformed API responses", async () => {
       server.use(
-        http.post(`${API_BASE_URL}/analytics/malformed/analytics`, () => {
+        http.post(`${API_BASE_URL}/analytics/malformed`, () => {
           // Return a JSON response with an error field to indicate failure
           return HttpResponse.json(
             { error: "Malformed response" },
@@ -182,7 +182,7 @@ describe("Analytics with MSW", () => {
 
     it("should handle authentication failures", async () => {
       server.use(
-        http.post(`${API_BASE_URL}/analytics/auth_fail/analytics`, () => {
+        http.post(`${API_BASE_URL}/analytics/auth_fail`, () => {
           return new HttpResponse(JSON.stringify({ error: "Unauthorized" }), {
             status: 401,
             headers: { "Content-Type": "application/json" },
@@ -196,7 +196,7 @@ describe("Analytics with MSW", () => {
 
     it("should handle rate limiting", async () => {
       server.use(
-        http.post(`${API_BASE_URL}/analytics/rate_limit/analytics`, () => {
+        http.post(`${API_BASE_URL}/analytics/rate_limit`, () => {
           return new HttpResponse(
             JSON.stringify({ error: "Rate limit exceeded" }),
             {
@@ -228,7 +228,7 @@ describe("Analytics with MSW", () => {
       const altBaseUrl = "http://localhost:9999";
 
       server.use(
-        http.post(`${altBaseUrl}/analytics/alt_url_test/analytics`, () => {
+        http.post(`${altBaseUrl}/analytics/alt_url_test`, () => {
           return HttpResponse.json({ success: true, eventId: "alt_url_test" });
         })
       );

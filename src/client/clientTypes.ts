@@ -24,7 +24,10 @@ export type CollectionsClient = {
     mode: Ref["type"],
     options?: CollectionsGetOptions
   ): Promise<Ref["returnType"]>;
-  getStaticUrl: (path: string) => Promise<string>;
+  getStaticUrl: (
+    path: string,
+    options?: CollectionsGetOptions
+  ) => Promise<string>;
 };
 
 export type AtMyAppClientOptions = {

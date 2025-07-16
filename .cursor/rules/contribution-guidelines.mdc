@@ -1,0 +1,14 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Contribution Guidelines for New Library Features
+
+When adding **any** new functionality to the AtMyApp libraries, always follow the checklist below:
+
+1. **User-facing docs** – Update the main project documentation in [core/README.md](mdc:core/core/README.md) (or the relevant package README) to describe the new feature, including examples.
+2. **Backend contract** – If the change introduces, removes, or alters an HTTP endpoint, payload, or response shape, update the backend reference in [core/BACKEND.md](mdc:core/core/BACKEND.md) accordingly.
+3. **Tests** – Provide unit and/or integration tests that cover the new behaviour. Ensure the test suite passes (`npm test`) before submitting a PR.
+
+Failure to satisfy this rule will block code review.

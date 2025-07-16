@@ -160,7 +160,12 @@ export const createCollectionsClient = (
     throw new Error(`Unsupported mode: ${mode}`);
   };
 
-  const getStaticUrl = async (path: string) => {
+  const getStaticUrl = async (
+    path: string,
+    options?: CollectionsGetOptions
+  ) => {
+    const previewKey = options?.previewKey || clientOptions.previewKey;
+
     const response = await $fetch<{
       success: boolean;
       data: {
@@ -169,6 +174,9 @@ export const createCollectionsClient = (
     }>("/static/:path", {
       params: {
         path: cleanPath(path),
+      },
+      query: {
+        amaPreviewKey: previewKey,
       },
     });
 
