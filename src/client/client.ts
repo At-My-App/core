@@ -1,12 +1,14 @@
 import { AtMyAppClient, AtMyAppClientOptions } from "./clientTypes";
 
-import { createCollectionsClient } from "./collections";
+import { createStorageClient } from "./storage";
 import { createAnalyticsClient } from "./analytics";
+import { createCollectionsClient } from "./collections";
 export const createAtMyAppClient = (
   options: AtMyAppClientOptions
 ): AtMyAppClient => {
   return {
-    collections: createCollectionsClient(options),
+    storage: createStorageClient(options),
     analytics: createAnalyticsClient(options),
+    collections: createCollectionsClient(options),
   };
 };

@@ -1,7 +1,7 @@
 import {
   AtMyAppClientOptions,
-  CollectionsClient,
-  CollectionsGetOptions,
+  StorageGetOptions,
+  StorageClient,
 } from "./clientTypes";
 import { createFetch } from "@better-fetch/fetch";
 import { cleanPath } from "./utils/cleanPath";
@@ -11,9 +11,9 @@ import { AmaContent } from "../definitions/AmaContent";
 import { AmaImage } from "../definitions/AmaImage";
 import { AmaIcon } from "../definitions/AmaIcon";
 
-export const createCollectionsClient = (
+export const createStorageClient = (
   clientOptions: AtMyAppClientOptions
-): CollectionsClient => {
+): StorageClient => {
   const storageUrl = `${clientOptions.baseUrl}/storage`;
 
   const $fetch = createFetch({
@@ -24,7 +24,7 @@ export const createCollectionsClient = (
     },
   });
 
-  const getRaw = async (path: string, options?: CollectionsGetOptions) => {
+  const getRaw = async (path: string, options?: StorageGetOptions) => {
     const previewKey = options?.previewKey || clientOptions.previewKey;
 
     const response = await $fetch("/f/:path", {
@@ -39,7 +39,7 @@ export const createCollectionsClient = (
     return response;
   };
 
-  const getFromPath = async (path: string, options?: CollectionsGetOptions) => {
+  const getFromPath = async (path: string, options?: StorageGetOptions) => {
     const response = await getRaw(path, options);
     return response.data;
   };
@@ -162,7 +162,7 @@ export const createCollectionsClient = (
 
   const getStaticUrl = async (
     path: string,
-    options?: CollectionsGetOptions
+    options?: StorageGetOptions
   ) => {
     const previewKey = options?.previewKey || clientOptions.previewKey;
 

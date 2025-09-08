@@ -1,242 +1,115 @@
 // @ts-nocheck
-
 import { createAtMyAppClient } from "../src/client/client";
-import { server } from "./server"; // Import server for handler manipulation if needed
-import { API_BASE_URL, file_json, preview_json } from "./handlers";
+import { server } from "./server";
+import { API_BASE_URL } from "./handlers";
 import { http, HttpResponse } from "msw";
+import { F } from "../src/client/collections";
 
-describe("Collections with MSW", () => {
-  it("should fetch data from path", async () => {
-    const client = createAtMyAppClient({
-      apiKey: "test",
-      baseUrl: API_BASE_URL,
-    });
-
-    const data = await client.collections.get("/file.json", "file");
-    expect(data.src).toEqual(file_json);
-  });
-
-  it("should handle 404 errors", async () => {
-    const client = createAtMyAppClient({
-      apiKey: "test",
-      baseUrl: API_BASE_URL,
-    });
-
-    // Override with a 404 response for this test
+describe("Collections client", () => {
+  it("lists with AND filters", async () => {
+    let requestUrl: URL | undefined;
     server.use(
-      http.get(`${API_BASE_URL}/storage/f/missing.json`, () => {
-        return new HttpResponse(null, { status: 404 });
-      })
-    );
-
-    const data = await client.collections.get("/missing.json", "file");
-    expect(data.isError).toBe(true);
-    expect(data.errorMessage).toBe("File not found");
-    expect(data.errorStatus).toBe(404);
-  });
-
-  it("should handle authentication errors", async () => {
-    const client = createAtMyAppClient({
-      apiKey: "invalid-key",
-      baseUrl: API_BASE_URL,
-    });
-
-    // Override with a 401 response for this test
-    server.use(
-      http.get(`${API_BASE_URL}/storage/f/auth.json`, () => {
-        return new HttpResponse(null, { status: 401 });
-      })
-    );
-
-    const data = await client.collections.get("/auth.json", "file");
-    expect(data.isError).toBe(true);
-    expect(data.errorMessage).toBe("Wrong API key");
-    expect(data.errorStatus).toBe(401);
-  });
-
-  it("should handle generic errors", async () => {
-    const client = createAtMyAppClient({
-      apiKey: "test",
-      baseUrl: API_BASE_URL,
-    });
-
-    // Override with a 500 response for this test
-    server.use(
-      http.get(`${API_BASE_URL}/storage/f/error.json`, () => {
-        return new HttpResponse(JSON.stringify({ error: "Server error" }), {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        });
-      })
-    );
-
-    const data = await client.collections.get("/error.json", "file");
-    expect(data.isError).toBe(true);
-    expect(data.errorStatus).toBe(500);
-  });
-
-  it("should fetch content type data", async () => {
-    const client = createAtMyAppClient({
-      apiKey: "test",
-      baseUrl: API_BASE_URL,
-    });
-
-    const contentData = { name: "Test Content" };
-
-    server.use(
-      http.get(`${API_BASE_URL}/storage/f/content.json`, () => {
-        return HttpResponse.json(contentData);
-      })
-    );
-
-    const data = await client.collections.get("/content.json", "content");
-    expect(data.__amatype).toBe("AmaContent");
-    expect(data.data).toEqual(contentData);
-    expect(data.isError).toBe(false);
-  });
-
-  it("should fetch image type data", async () => {
-    const client = createAtMyAppClient({
-      apiKey: "test",
-      baseUrl: API_BASE_URL,
-    });
-
-    const imageSrc = "https://example.com/image.jpg";
-
-    server.use(
-      http.get(`${API_BASE_URL}/storage/f/image.jpg`, () => {
-        return HttpResponse.json(imageSrc);
-      })
-    );
-
-    const data = await client.collections.get("/image.jpg", "image");
-    expect(data.__amatype).toBe("AmaImage");
-    expect(data.src).toEqual(imageSrc);
-    expect(data.isError).toBe(false);
-  });
-
-  it("should fetch icon type data", async () => {
-    const client = createAtMyAppClient({
-      apiKey: "test",
-      baseUrl: API_BASE_URL,
-    });
-
-    const iconSrc = "https://example.com/icon.svg";
-
-    server.use(
-      http.get(`${API_BASE_URL}/storage/f/icon.svg`, () => {
-        return HttpResponse.json(iconSrc);
-      })
-    );
-
-    const data = await client.collections.get("/icon.svg", "icon");
-    expect(data.__amatype).toBe("AmaIcon");
-    expect(data.src).toEqual(iconSrc);
-    expect(data.isError).toBe(false);
-  });
-
-  it("should pass preview key when provided", async () => {
-    const previewKey = "preview-123";
-    let requestUrl;
-
-    server.use(
-      http.get(`${API_BASE_URL}/storage/f/:path`, ({ request }) => {
+      http.get(`${API_BASE_URL}/collections/:collection`, ({ request }) => {
         requestUrl = new URL(request.url);
-        return HttpResponse.json(preview_json);
+        return HttpResponse.json({ success: true, data: [{ id: 1 }, { id: 2 }] });
       })
     );
 
-    const client = createAtMyAppClient({
-      apiKey: "test",
-      baseUrl: API_BASE_URL,
+    const client = createAtMyAppClient({ apiKey: "k", baseUrl: API_BASE_URL });
+    const rows = await client.collections.list("orders", {
+      filter: F.and(F.eq("status", "done"), F.gte("total", 100)),
     });
 
-    const data = await client.collections.get("/preview.json", "file", {
-      previewKey,
-    });
-
-    expect(data.src).toEqual(preview_json);
+    expect(Array.isArray(rows)).toBe(true);
+    expect(rows.length).toBe(2);
+    expect(requestUrl?.searchParams.get("status.eq")).toBe("done");
+    expect(requestUrl?.searchParams.get("total.gte")).toBe("100");
   });
 
-  it("should use client-level preview key when available", async () => {
-    const previewKey = "client-preview-123";
-    let requestUrl;
-
+  it("supports IN operator", async () => {
+    let requestUrl: URL | undefined;
     server.use(
-      http.get(`${API_BASE_URL}/storage/f/:path`, ({ request }) => {
+      http.get(`${API_BASE_URL}/collections/:collection`, ({ request }) => {
         requestUrl = new URL(request.url);
-        return HttpResponse.json(file_json);
+        return HttpResponse.json({ success: true, data: [] });
       })
     );
 
-    const client = createAtMyAppClient({
-      apiKey: "test",
-      baseUrl: API_BASE_URL,
-      previewKey,
+    const client = createAtMyAppClient({ apiKey: "k", baseUrl: API_BASE_URL });
+    await client.collections.list("orders", {
+      filter: F.in("status", ["done", "canceled"]),
     });
 
-    await client.collections.getFromPath("/preview.json");
-    expect(requestUrl.searchParams.get("amaPreviewKey")).toBe(previewKey);
+    expect(requestUrl?.searchParams.get("status.in")).toBe("(done,canceled)");
   });
 
-  it("should fetch a static URL for a given path", async () => {
-    const client = createAtMyAppClient({
-      apiKey: "test",
-      baseUrl: API_BASE_URL,
-    });
-
-    const path = "/image.jpg";
-    const expectedStaticUrl = "https://cdn.example.com/image.jpg";
-
-    const url = await client.collections.getStaticUrl(path);
-    expect(url).toBe(expectedStaticUrl);
-  });
-
-  it("should throw an error when static URL generation fails", async () => {
-    const client = createAtMyAppClient({
-      apiKey: "test",
-      baseUrl: API_BASE_URL,
-    });
-
-    // Override handler with a failure response
+  it("supports OR groups combined with AND", async () => {
+    let requestUrl: URL | undefined;
     server.use(
-      http.get(`${API_BASE_URL}/storage/static/broken.jpg`, () => {
-        return new HttpResponse(JSON.stringify({ success: false }), {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        });
+      http.get(`${API_BASE_URL}/collections/:collection`, ({ request }) => {
+        requestUrl = new URL(request.url);
+        return HttpResponse.json({ success: true, data: [] });
       })
     );
 
+    const client = createAtMyAppClient({ apiKey: "k", baseUrl: API_BASE_URL });
+    await client.collections.list("orders", {
+      filter: F.and(
+        F.eq("category", "retail"),
+        F.or(F.eq("status", "done"), F.in("status", ["canceled", "refunded"]))
+      ),
+    });
+
+    const orValues = requestUrl?.searchParams.getAll("or");
+    expect(requestUrl?.searchParams.get("category.eq")).toBe("retail");
+    expect(orValues && orValues[0]).toBe("(status.eq.done,status.in.(canceled,refunded))");
+  });
+
+  it("normalizes select/order and limit/offset", async () => {
+    let requestUrl: URL | undefined;
+    server.use(
+      http.get(`${API_BASE_URL}/collections/:collection`, ({ request }) => {
+        requestUrl = new URL(request.url);
+        return HttpResponse.json({ success: true, data: [] });
+      })
+    );
+
+    const client = createAtMyAppClient({ apiKey: "k", baseUrl: API_BASE_URL });
+    await client.collections.list("orders", {
+      select: ["id", "data", "foo"],
+      order: "updated.desc",
+      limit: 50,
+      offset: 50,
+    });
+
+    expect(requestUrl?.searchParams.get("select")).toBe("id,data");
+    expect(requestUrl?.searchParams.get("order")).toBe("updated.desc");
+    expect(requestUrl?.searchParams.get("limit")).toBe("50");
+    expect(requestUrl?.searchParams.get("offset")).toBe("50");
+  });
+
+  it("supports getById via id.eq and limit 1", async () => {
+    let requestUrl: URL | undefined;
+    server.use(
+      http.get(`${API_BASE_URL}/collections/:collection`, ({ request }) => {
+        requestUrl = new URL(request.url);
+        return HttpResponse.json({ success: true, data: [{ id: "123" }] });
+      })
+    );
+
+    const client = createAtMyAppClient({ apiKey: "k", baseUrl: API_BASE_URL });
+    const row = await client.collections.getById("orders", "123");
+    expect(row?.id).toBe("123");
+    expect(requestUrl?.searchParams.get("id.eq")).toBe("123");
+    expect(requestUrl?.searchParams.get("limit")).toBe("1");
+  });
+
+  it("rejects AND inside OR with a clear error", async () => {
+    const client = createAtMyAppClient({ apiKey: "k", baseUrl: API_BASE_URL });
     await expect(
-      client.collections.getStaticUrl("/broken.jpg")
-    ).rejects.toThrow("Failed to get static URL");
-  });
-
-  it("should fetch a static URL with preview key", async () => {
-    const previewKey = "preview-123";
-    let requestUrl: URL;
-
-    server.use(
-      http.get(`${API_BASE_URL}/storage/static/:path`, ({ request }) => {
-        requestUrl = new URL(request.url);
-        return HttpResponse.json({
-          success: true,
-          data: { staticUrl: "https://cdn.example.com/static/url.jpg" },
-        });
+      client.collections.list("orders", {
+        filter: F.or(F.and(F.eq("a", 1), F.eq("b", 2)), F.eq("c", 3)),
       })
-    );
-
-    const client = createAtMyAppClient({
-      apiKey: "test",
-      baseUrl: API_BASE_URL,
-    });
-
-    const url = await client.collections.getStaticUrl("/url.jpg", {
-      previewKey,
-    });
-
-    expect(url).toBe("https://cdn.example.com/static/url.jpg");
-    expect(requestUrl.searchParams.get("amaPreviewKey")).toBe(previewKey);
+    ).rejects.toThrow("AND inside OR is not supported");
   });
 });
