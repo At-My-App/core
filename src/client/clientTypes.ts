@@ -36,6 +36,7 @@ export type AtMyAppClientOptions = {
   baseUrl: string;
   customFetch?: typeof fetch;
   previewKey?: string;
+  plugins?: string[];
 };
 
 export type AnalyticsClient = {
@@ -54,6 +55,28 @@ export type CollectionsOrderDirection = "asc" | "desc";
 export type CollectionsComparisonOp = "eq" | "lt" | "lte" | "gt" | "gte" | "in";
 export type CollectionsPrimitive = string | number | boolean | Date;
 
+export type CollectionsFormat = "raw" | "data" | "dictionary";
+
+export type CollectionsRawEntry<Row = any> = {
+  id: string | number;
+  data: Row;
+  [key: string]: unknown;
+};
+
+export type CollectionsListResult<Row, Format extends CollectionsFormat = "data"> =
+  Format extends "raw"
+    ? CollectionsRawEntry<Row>[]
+    : Format extends "dictionary"
+    ? Record<string, Row>
+    : Row[];
+
+export type CollectionsSingleResult<Row, Format extends CollectionsFormat = "data"> =
+  Format extends "raw"
+    ? CollectionsRawEntry<Row> | null
+    : Format extends "dictionary"
+    ? Record<string, Row> | null
+    : Row | null;
+
 export type CollectionsFilterExpr =
   | {
       type: "comparison";
@@ -65,7 +88,7 @@ export type CollectionsFilterExpr =
   | { type: "or"; conditions: CollectionsFilterExpr[] }
   | { type: "not"; condition: CollectionsFilterExpr };
 
-export type CollectionsListOptions = {
+export type CollectionsListOptions<Format extends CollectionsFormat = "data"> = {
   select?:
     | "id"
     | "data"
@@ -78,6 +101,8 @@ export type CollectionsListOptions = {
   offset?: number;
   filter?: CollectionsFilterExpr;
   previewKey?: string;
+  plugins?: string[];
+  format?: Format;
 };
 
 export type CollectionsResponse<Row = any> = {
@@ -101,27 +126,57 @@ export type CollectionsClient = {
 
   // list overloads (typed via AmaCollectionDef or generic Row)
   list<
-    Def extends import("../definitions/AmaCollection").AmaCollectionDef<string, any, any>
+    Def extends import("../definitions/AmaCollection").AmaCollectionDef<string, any, any>,
+    Format extends CollectionsFormat = "data"
   >(
     collection: string,
-    options?: CollectionsListOptions
-  ): Promise<Def["structure"]["__rowType"][]>;
-  list<Row = any>(
+    options?: CollectionsListOptions<Format>
+  ): Promise<CollectionsListResult<Def["structure"]["__rowType"], Format>>;
+  list<Row = any, Format extends CollectionsFormat = "data">(
     collection: string,
-    options?: CollectionsListOptions
-  ): Promise<Row[]>;
+    options?: CollectionsListOptions<Format>
+  ): Promise<CollectionsListResult<Row, Format>>;
 
   // getById overloads (typed via AmaCollectionDef or generic Row)
   getById<
-    Def extends import("../definitions/AmaCollection").AmaCollectionDef<string, any, any>
+    Def extends import("../definitions/AmaCollection").AmaCollectionDef<string, any, any>,
+    Format extends CollectionsFormat = "data"
   >(
     collection: string,
     id: string | number,
-    options?: CollectionsListOptions
-  ): Promise<Def["structure"]["__rowType"] | null>;
-  getById<Row = any>(
+    options?: CollectionsListOptions<Format>
+  ): Promise<CollectionsSingleResult<Def["structure"]["__rowType"], Format>>;
+  getById<Row = any, Format extends CollectionsFormat = "data">(
     collection: string,
     id: string | number,
-    options?: CollectionsListOptions
-  ): Promise<Row | null>;
+    options?: CollectionsListOptions<Format>
+  ): Promise<CollectionsSingleResult<Row, Format>>;
+
+  // Add: first helper
+  first<
+    Def extends import("../definitions/AmaCollection").AmaCollectionDef<string, any, any>,
+    Format extends CollectionsFormat = "data"
+  >(
+    collection: string,
+    options?: CollectionsListOptions<Format>
+  ): Promise<CollectionsSingleResult<Def["structure"]["__rowType"], Format>>;
+  first<Row = any, Format extends CollectionsFormat = "data">(
+    collection: string,
+    options?: CollectionsListOptions<Format>
+  ): Promise<CollectionsSingleResult<Row, Format>>;
+
+  // Add: getManyByIds helper
+  getManyByIds<
+    Def extends import("../definitions/AmaCollection").AmaCollectionDef<string, any, any>,
+    Format extends CollectionsFormat = "data"
+  >(
+    collection: string,
+    ids: Array<string | number>,
+    options?: CollectionsListOptions<Format>
+  ): Promise<CollectionsListResult<Def["structure"]["__rowType"], Format>>;
+  getManyByIds<Row = any, Format extends CollectionsFormat = "data">(
+    collection: string,
+    ids: Array<string | number>,
+    options?: CollectionsListOptions<Format>
+  ): Promise<CollectionsListResult<Row, Format>>;
 };

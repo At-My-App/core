@@ -78,14 +78,14 @@ type JokeViewEvent = AmaEventDef<"joke_view">;
 export type ATMYAPP = [JokeOfTheDayDef, JokeImageDef, JokeViewEvent];
 
 // Fetch content
-const content = await client.collections.get<JokeOfTheDayDef>(
+const content = await client.storage.get<JokeOfTheDayDef>(
   "joke.json",
   "content"
 );
 console.log(content.data);
 
 // Get the image as static URL
-const imageUrl = await client.collections.getStaticUrl("joke-image");
+const imageUrl = await client.storage.getStaticUrl("joke-image");
 console.log(imageUrl);
 
 // Track basic events (server automatically collects IP, location, etc.)
@@ -117,7 +117,98 @@ const client = createAtMyAppClient({
 
 ### Collections API
 
-The Collections API allows you to fetch content, images, and files from your AtMyApp project.
+Use the Collections client to list entries, add filters with a fluent DSL, and fetch entries by id. The client always returns full rows and always enables the static-urls plugin by default.
+
+Setup
+```typescript
+import { createAtMyAppClient, CollectionsListOptions, CollectionsFilter as F } from "@atmyapp/core";
+
+const client = createAtMyAppClient({
+  apiKey: "your-api-key",
+  baseUrl: "https://api.atmyapp.com",
+  // Optional: default preview key for preview mode (used when per-call previewKey is omitted)
+  previewKey: "preview-123",
+});
+```
+
+List entries
+```typescript
+// Full rows by default
+const rows = await client.collections.list("blog_posts");
+
+// With options
+const rows2 = await client.collections.list("blog_posts", {
+  limit: 20,
+  offset: 0,
+  order: "updated.desc",
+});
+```
+
+Filtering with F
+```typescript
+// Equality
+await client.collections.list("blog_posts", {
+  filter: F.eq("author", "Alice"),
+});
+
+// AND
+await client.collections.list("blog_posts", {
+  filter: F.and(
+    F.eq("published", true),
+    F.gte("updated", new Date("2024-01-01")),
+  ),
+});
+
+// OR
+await client.collections.list("blog_posts", {
+  filter: F.or(
+    F.eq("author", "Alice"),
+    F.eq("author", "Bob"),
+  ),
+});
+
+// IN
+await client.collections.list("blog_posts", {
+  filter: F.in("id", [1, 2, 3]),
+});
+```
+
+Preview mode (draft content)
+```typescript
+// Per-call preview key (overrides client default if set)
+await client.collections.list("blog_posts", {
+  previewKey: "prev-xyz-123",
+});
+```
+
+Get by id
+```typescript
+const row = await client.collections.getById("blog_posts", 123);
+
+// With preview key
+const draftRow = await client.collections.getById("blog_posts", 123, {
+  previewKey: "prev-xyz-123",
+});
+```
+
+Helpers
+```typescript
+// first: returns the first row or null (set order in options if needed)
+const firstRow = await client.collections.first("blog_posts", {
+  order: "updated.desc",
+});
+
+// getManyByIds: returns all found rows reordered to match the ids array
+const rowsById = await client.collections.getManyByIds("blog_posts", [5, 2, 9], {
+  // Optional: order is ignored for reordering; we reorder client-side
+  previewKey: "prev-xyz-123",
+});
+```
+
+Notes
+- We always return full rows; no select override is applied by helper methods.
+- The static-urls plugin is always enabled for collection requests.
+- For OR filters, AND conditions inside an OR group aren’t supported by the server query syntax.
 
 #### `client.collections.get<T>(path, mode, options?)`
 

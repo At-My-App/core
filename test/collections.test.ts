@@ -11,7 +11,13 @@ describe("Collections client", () => {
     server.use(
       http.get(`${API_BASE_URL}/collections/:collection`, ({ request }) => {
         requestUrl = new URL(request.url);
-        return HttpResponse.json({ success: true, data: [{ id: 1 }, { id: 2 }] });
+        return HttpResponse.json({
+          success: true,
+          data: [
+            { id: 1, data: { status: "done", total: 120 } },
+            { id: 2, data: { status: "pending", total: 80 } },
+          ],
+        });
       })
     );
 
@@ -22,6 +28,7 @@ describe("Collections client", () => {
 
     expect(Array.isArray(rows)).toBe(true);
     expect(rows.length).toBe(2);
+    expect(rows[0].status).toBe("done");
     expect(requestUrl?.searchParams.get("status.eq")).toBe("done");
     expect(requestUrl?.searchParams.get("total.gte")).toBe("100");
   });
@@ -93,7 +100,10 @@ describe("Collections client", () => {
     server.use(
       http.get(`${API_BASE_URL}/collections/:collection`, ({ request }) => {
         requestUrl = new URL(request.url);
-        return HttpResponse.json({ success: true, data: [{ id: "123" }] });
+        return HttpResponse.json({
+          success: true,
+          data: [{ id: "123", data: { id: "123", title: "Hello" } }],
+        });
       })
     );
 
@@ -111,5 +121,48 @@ describe("Collections client", () => {
         filter: F.or(F.and(F.eq("a", 1), F.eq("b", 2)), F.eq("c", 3)),
       })
     ).rejects.toThrow("AND inside OR is not supported");
+  });
+
+  it("returns dictionary format when requested", async () => {
+    let requestUrl: URL | undefined;
+    server.use(
+      http.get(`${API_BASE_URL}/collections/:collection`, ({ request }) => {
+        requestUrl = new URL(request.url);
+        return HttpResponse.json({
+          success: true,
+          data: [
+            { id: "1", data: { title: "First" } },
+            { id: "2", data: { title: "Second" } },
+          ],
+        });
+      })
+    );
+
+    const client = createAtMyAppClient({ apiKey: "k", baseUrl: API_BASE_URL });
+    const rows = await client.collections.list("orders", { format: "dictionary" });
+
+    expect(Object.keys(rows)).toEqual(["1", "2"]);
+    expect(rows["1"].title).toBe("First");
+    expect(requestUrl?.searchParams.getAll("plugins")).toEqual(["static-url"]);
+  });
+
+  it("returns raw rows when format is raw", async () => {
+    server.use(
+      http.get(`${API_BASE_URL}/collections/:collection`, () => {
+        return HttpResponse.json({
+          success: true,
+          data: [
+            { id: "1", data: { title: "First" }, created: "2024-01-01" },
+          ],
+        });
+      })
+    );
+
+    const client = createAtMyAppClient({ apiKey: "k", baseUrl: API_BASE_URL });
+    const rows = await client.collections.list("orders", { format: "raw" });
+
+    expect(rows[0].id).toBe("1");
+    expect(rows[0].data.title).toBe("First");
+    expect(rows[0].created).toBe("2024-01-01");
   });
 });
