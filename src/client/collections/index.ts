@@ -232,7 +232,7 @@ function transformRows<Row, Format extends CollectionsFormat = "data">(
     }
     return dict as CollectionsListResult<Row, Format>;
   }
-  return (rows.entries as any as []).map((entry) => entry.data as Row) as CollectionsListResult<Row, Format>;
+  return (rows.entries as any as []).map((entry: any) => entry.data as Row) as CollectionsListResult<Row, Format>;
 }
 
 function transformSingle<Row, Format extends CollectionsFormat = "data">(
