@@ -106,6 +106,7 @@ Creates a new AtMyApp client instance.
 - `baseUrl` (string) - The base URL for the AtMyApp API
 - `customFetch` (optional) - Custom fetch implementation
 - `previewKey` (optional) - Preview key for draft content (when using preview mode we add the query parameter `previewKey` to the website URL). You can check the website URL to see if it contains the `previewKey` query parameter (in the future we will automatically check the URL for the preview key)
+- `mode` (optional) - Request mode: `'client'` for client-side requests with cache (default), `'priority'` for server-side requests without cache (mainly for server-side rendering, higher usage cost)
 
 ```typescript
 const client = createAtMyAppClient({

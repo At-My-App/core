@@ -22,6 +22,9 @@ export const createStorageClient = (
       type: "Bearer",
       token: clientOptions.apiKey,
     },
+    headers:{
+      "Cache-Control": clientOptions.mode === "priority" ? "no-cache" : "max-age=60"
+    }
   });
 
   const getRaw = async (path: string, options?: StorageGetOptions) => {

@@ -37,6 +37,10 @@ export type AtMyAppClientOptions = {
   customFetch?: typeof fetch;
   previewKey?: string;
   plugins?: string[];
+  /**
+   * 'client' for client-side requests with cache, 'priority' for requests to server without cache (mainly for server-side rendering, higher usage cost)
+   */
+  mode?: 'client' | 'priority';
 };
 
 export type AnalyticsClient = {
@@ -111,6 +115,15 @@ export type CollectionsResponse<Row = any> = {
   error?: string;
 };
 
+export type CollectionsResponseRaw<Row = any> = {
+  success: boolean;
+  data?: {
+    entries: Row[];
+    total: number;
+  }
+  error?: string;
+};
+
 export type CollectionsClient = {
   // listRaw overloads (typed via AmaCollectionDef or generic Row)
   listRaw<
@@ -118,11 +131,11 @@ export type CollectionsClient = {
   >(
     collection: string,
     options?: CollectionsListOptions
-  ): Promise<CollectionsResponse<Def["structure"]["__rowType"]>>;
+  ): Promise<CollectionsResponseRaw<Def["structure"]["__rowType"]>>;
   listRaw<Row = any>(
     collection: string,
     options?: CollectionsListOptions
-  ): Promise<CollectionsResponse<Row>>;
+  ): Promise<CollectionsResponseRaw<Row>>;
 
   // list overloads (typed via AmaCollectionDef or generic Row)
   list<
