@@ -28,9 +28,10 @@ export const createCollectionsClient = (
       type: "Bearer",
       token: clientOptions.apiKey,
     },
-    headers:{
-      "Cache-Control": clientOptions.mode === "priority" ? "no-cache" : "max-age=60"
-    }
+    fetch: clientOptions.customFetch,
+    headers: {
+      "Cache-Control": clientOptions.mode === "priority" ? "no-cache" : "max-age=60",
+    },
   });
 
   // Overloads for listRaw
@@ -116,7 +117,11 @@ export const createCollectionsClient = (
     const { format, base } = splitFormat(options);
     const resp = await listRaw<CollectionsRawEntry<Row>>(collection, base);
     if (resp.success === true && resp.data) {
-      return transformRows<Row, Format>(resp.data.entries, format);
+      return transformRows<Row, Format>(
+        resp.data.entries,
+        format,
+        resp.data.total
+      );
     }
     const err = resp.error || "Collections request failed";
     throw new Error(err);
@@ -150,8 +155,9 @@ export const createCollectionsClient = (
       filter: F.eq("id", id),
       limit: 1,
     });
+    const total = rows.data?.total ?? 0;
     const rawRow = rows.data?.entries[0] ?? null;
-    return transformSingle<Row, Format>(rawRow, format);
+    return transformSingle<Row, Format>(rawRow, format, total);
   }
 
   // Add: first helper
@@ -172,17 +178,18 @@ export const createCollectionsClient = (
   ): Promise<CollectionsSingleResult<Row, Format>> {
     const { format, base } = splitFormat(options);
     const previewKey = options?.previewKey ?? clientOptions.previewKey;
-    const rows = await list<Row, "raw">(collection, {
+    const resp = await listRaw<CollectionsRawEntry<Row>>(collection, {
       ...(base ?? {}),
-      // Keep full rows; caller can provide order if desired
       limit: 1,
-      // Forward previewKey explicitly for clarity
       previewKey,
-      format: "raw",
     });
-    const rawRows = rows as CollectionsRawEntry<Row>[];
-    const rawRow = rawRows[0] ?? null;
-    return transformSingle<Row, Format>(rawRow, format);
+    if (resp.success === true && resp.data) {
+      const total = resp.data.total ?? resp.data.entries.length;
+      const rawRow = resp.data.entries[0] ?? null;
+      return transformSingle<Row, Format>(rawRow, format, total);
+    }
+    const err = resp.error || "Collections request failed";
+    throw new Error(err);
   }
 
   // Add: getManyByIds helper (returns rows found, ordered by ids)
@@ -207,26 +214,28 @@ export const createCollectionsClient = (
     const { format, base } = splitFormat(options);
     if (!ids || ids.length === 0) {
       const empty: CollectionsRawEntry<Row>[] = [];
-      return transformRows<Row, Format>(empty, format);
+      return transformRows<Row, Format>(empty, format, 0);
     }
     const previewKey = options?.previewKey ?? clientOptions.previewKey;
-    const rows = await list<Row, "raw">(collection, {
+    const resp = await listRaw<CollectionsRawEntry<Row>>(collection, {
       ...(base ?? {}),
       // Keep full rows
       filter: F.in("id", ids as any),
       // Forward previewKey explicitly
       previewKey,
-      format: "raw",
       // Do not set limit so we get all matches; server-side max still applies
     });
+    if (resp.success !== true || !resp.data) {
+      const err = resp.error || "Collections request failed";
+      throw new Error(err);
+    }
 
-    // Reorder to match the input ids order; omit not-found ids
     const rank = new Map<string, number>(ids.map((v, i) => [String(v), i]));
-    const rawRows = rows as CollectionsRawEntry<Row>[];
+    const rawRows = resp.data.entries;
     const withKey = rawRows.map((r) => ({ r, k: String(r.id) }));
     withKey.sort((a, b) => rank.get(a.k)! - rank.get(b.k)!);
     const orderedRows = withKey.map((x) => x.r);
-    return transformRows<Row, Format>(orderedRows, format);
+    return transformRows<Row, Format>(orderedRows, format, resp.data.total);
   }
 
   return {
@@ -240,9 +249,11 @@ export const createCollectionsClient = (
 
 function transformRows<Row, Format extends CollectionsFormat = "data">(
   rows: CollectionsRawEntry<Row>[],
-  format: CollectionsFormat | undefined
+  format: CollectionsFormat | undefined,
+  total: number
 ): CollectionsListResult<Row, Format> {
   const effectiveFormat = (format ?? "data") as Format;
+  const safeTotal = typeof total === "number" ? total : rows.length;
   if (effectiveFormat === "raw") {
     return rows as unknown as CollectionsListResult<Row, Format>;
   }
@@ -253,15 +264,23 @@ function transformRows<Row, Format extends CollectionsFormat = "data">(
     }
     return dict as CollectionsListResult<Row, Format>;
   }
+  if (effectiveFormat === "dataWithMeta") {
+    const mappedRows = rows.map((entry) => entry.data as Row);
+    return { rows: mappedRows, total: safeTotal } as CollectionsListResult<Row, Format>;
+  }
   return rows.map((entry) => entry.data as Row) as CollectionsListResult<Row, Format>;
 }
 
 function transformSingle<Row, Format extends CollectionsFormat = "data">(
   row: CollectionsRawEntry<Row> | null,
-  format: CollectionsFormat | undefined
+  format: CollectionsFormat | undefined,
+  total: number
 ): CollectionsSingleResult<Row, Format> {
   const effectiveFormat = (format ?? "data") as Format;
   if (!row) {
+    if (effectiveFormat === "dataWithMeta") {
+      return { row: null, total } as CollectionsSingleResult<Row, Format>;
+    }
     return null as CollectionsSingleResult<Row, Format>;
   }
   if (effectiveFormat === "raw") {
@@ -269,6 +288,9 @@ function transformSingle<Row, Format extends CollectionsFormat = "data">(
   }
   if (effectiveFormat === "dictionary") {
     return { [String(row.id)]: row.data as Row } as CollectionsSingleResult<Row, Format>;
+  }
+  if (effectiveFormat === "dataWithMeta") {
+    return { row: row.data as Row, total } as CollectionsSingleResult<Row, Format>;
   }
   return (row.data as Row) as CollectionsSingleResult<Row, Format>;
 }

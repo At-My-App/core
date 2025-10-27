@@ -59,7 +59,17 @@ export type CollectionsOrderDirection = "asc" | "desc";
 export type CollectionsComparisonOp = "eq" | "lt" | "lte" | "gt" | "gte" | "in";
 export type CollectionsPrimitive = string | number | boolean | Date;
 
-export type CollectionsFormat = "raw" | "data" | "dictionary";
+export type CollectionsListWithMeta<Row> = {
+  rows: Row[];
+  total: number;
+};
+
+export type CollectionsSingleWithMeta<Row> = {
+  row: Row | null;
+  total: number;
+};
+
+export type CollectionsFormat = "raw" | "data" | "dictionary" | "dataWithMeta";
 
 export type CollectionsRawEntry<Row = any> = {
   id: string | number;
@@ -72,6 +82,8 @@ export type CollectionsListResult<Row, Format extends CollectionsFormat = "data"
     ? CollectionsRawEntry<Row>[]
     : Format extends "dictionary"
     ? Record<string, Row>
+    : Format extends "dataWithMeta"
+    ? CollectionsListWithMeta<Row>
     : Row[];
 
 export type CollectionsSingleResult<Row, Format extends CollectionsFormat = "data"> =
@@ -79,6 +91,8 @@ export type CollectionsSingleResult<Row, Format extends CollectionsFormat = "dat
     ? CollectionsRawEntry<Row> | null
     : Format extends "dictionary"
     ? Record<string, Row> | null
+    : Format extends "dataWithMeta"
+    ? CollectionsSingleWithMeta<Row>
     : Row | null;
 
 export type CollectionsFilterExpr =

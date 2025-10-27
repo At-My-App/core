@@ -129,6 +129,8 @@ const client = createAtMyAppClient({
   baseUrl: "https://api.atmyapp.com",
   // Optional: default preview key for preview mode (used when per-call previewKey is omitted)
   previewKey: "preview-123",
+  // Optional: inject your own fetch implementation (for logging, retries, etc.)
+  customFetch: fetch,
 });
 ```
 
@@ -142,6 +144,11 @@ const rows2 = await client.collections.list("blog_posts", {
   limit: 20,
   offset: 0,
   order: "updated.desc",
+});
+
+// Ask for rows plus metadata (total rows, etc.)
+const { rows, total } = await client.collections.list("blog_posts", {
+  format: "dataWithMeta",
 });
 ```
 
@@ -203,6 +210,7 @@ const firstRow = await client.collections.first("blog_posts", {
 const rowsById = await client.collections.getManyByIds("blog_posts", [5, 2, 9], {
   // Optional: order is ignored for reordering; we reorder client-side
   previewKey: "prev-xyz-123",
+  format: "dataWithMeta",
 });
 ```
 
@@ -210,6 +218,8 @@ Notes
 - We always return full rows; no select override is applied by helper methods.
 - The static-urls plugin is always enabled for collection requests.
 - For OR filters, AND conditions inside an OR group aren’t supported by the server query syntax.
+- Preview keys cascade: per-call `previewKey` overrides the client-level `previewKey`, and if neither is supplied no preview header is sent.
+- `format: "dataWithMeta"` returns `{ rows, total }` for list helpers and `{ row, total }` for single helpers while preserving the raw `total` from the API.
 
 #### `client.collections.get<T>(path, mode, options?)`
 

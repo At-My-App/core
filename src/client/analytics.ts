@@ -26,6 +26,7 @@ export const createAnalyticsClient = (
       type: "Bearer",
       token: clientOptions.apiKey,
     },
+    fetch: clientOptions.customFetch,
   });
 
   const trackCustomEvent = async <

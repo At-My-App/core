@@ -22,21 +22,25 @@ export const createStorageClient = (
       type: "Bearer",
       token: clientOptions.apiKey,
     },
-    headers:{
-      "Cache-Control": clientOptions.mode === "priority" ? "no-cache" : "max-age=60"
-    }
+    fetch: clientOptions.customFetch,
+    headers: {
+      "Cache-Control": clientOptions.mode === "priority" ? "no-cache" : "max-age=60",
+    },
   });
 
   const getRaw = async (path: string, options?: StorageGetOptions) => {
     const previewKey = options?.previewKey || clientOptions.previewKey;
 
+    const query: Record<string, string> = {};
+    if (previewKey) {
+      query.amaPreviewKey = previewKey;
+    }
+
     const response = await $fetch("/f/:path", {
       params: {
         path: cleanPath(path),
       },
-      query: {
-        amaPreviewKey: previewKey,
-      },
+      query,
     });
 
     return response;
@@ -169,6 +173,11 @@ export const createStorageClient = (
   ) => {
     const previewKey = options?.previewKey || clientOptions.previewKey;
 
+    const query: Record<string, string> = {};
+    if (previewKey) {
+      query.amaPreviewKey = previewKey;
+    }
+
     const response = await $fetch<{
       success: boolean;
       data: {
@@ -178,9 +187,7 @@ export const createStorageClient = (
       params: {
         path: cleanPath(path),
       },
-      query: {
-        amaPreviewKey: previewKey,
-      },
+      query,
     });
 
     if (response.data && response.data.success) {
