@@ -19,8 +19,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 22.14.0
           registry-url: "https://registry.npmjs.org"
+
+      - name: Upgrade npm
+        run: npm install -g npm@11.5.1
 
       - name: Install dependencies
         run: npm ci
@@ -61,4 +64,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish to NPM
-        run: npm publish --provenance
+        run: |
+          npm config delete "//registry.npmjs.org/:_authToken" || true
+          npm publish --provenance
