@@ -1,0 +1,66 @@
+name: Automated Release
+
+on:
+  workflow_dispatch: # Requirement 4: Manual trigger
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    environment: Main
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history for tags and version check
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test # Requirement 3: Run tests before release
+
+      - name: Check version bump
+        id: check_version
+        run: |
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          # Get the latest tag from the repository
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          # Strip 'v' prefix if it exists for comparison
+          LATEST_TAG_CLEAN=${LATEST_TAG#v}
+          
+          echo "Current package version: $PACKAGE_VERSION"
+          echo "Latest tag: $LATEST_TAG"
+          
+          if [ "$PACKAGE_VERSION" == "$LATEST_TAG_CLEAN" ]; then
+            echo "Error: Version has not been bumped in package.json ($PACKAGE_VERSION). Please update the version before releasing."
+            exit 1
+          fi
+          echo "version=$PACKAGE_VERSION" >> $GITHUB_OUTPUT
+        # Requirement 1: Check if version was bumped
+
+      - name: Build project
+        run: npm run build
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.check_version.outputs.version }}
+          name: Release v${{ steps.check_version.outputs.version }}
+          generate_release_notes: true # Requirement 2: Automatically generate release notes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish to NPM
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
