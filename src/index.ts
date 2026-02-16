@@ -11,6 +11,8 @@ export {
   CollectionsListOptions,
   CollectionsFilterExpr,
   CollectionsResponse,
+  ClientMode,
+  LocalStorageOptions,
 } from "./client/clientTypes";
 export { createCollectionsClient } from "./client/collections";
 export { F as CollectionsFilter } from "./client/collections/filter-dsl";
@@ -24,5 +26,9 @@ export { AmaEvent, AmaEventDef } from "./definitions/AmaEvent";
 export { AmaFile, AmaFileDef } from "./definitions/AmaFile";
 export { AmaImage, AmaImageDef } from "./definitions/AmaImage";
 export { AmaIcon, AmaIconDef } from "./definitions/AmaIcon";
+export {
+  AmaComponentDef,
+  AmaMdxConfigDef,
+  AmaMdxFieldDef,
+} from "./definitions/AmaMdx";
 export { AmaCollection, AmaCollectionDef } from "./definitions/AmaCollection";
-

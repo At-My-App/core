@@ -9,14 +9,17 @@ describe("Collections client", () => {
   it("lists with AND filters", async () => {
     let requestUrl: URL | undefined;
     server.use(
-      http.get(`${API_BASE_URL}/collections/:collection`, ({ request }) => {
+      http.get(`${API_BASE_URL}/collections/:collection/entries`, ({ request }) => {
         requestUrl = new URL(request.url);
         return HttpResponse.json({
           success: true,
-          data: [
-            { id: 1, data: { status: "done", total: 120 } },
-            { id: 2, data: { status: "pending", total: 80 } },
-          ],
+          data: {
+            entries: [
+              { id: 1, data: { status: "done", total: 120 } },
+              { id: 2, data: { status: "pending", total: 80 } },
+            ],
+            total: 2,
+          },
         });
       })
     );
@@ -36,9 +39,12 @@ describe("Collections client", () => {
   it("supports IN operator", async () => {
     let requestUrl: URL | undefined;
     server.use(
-      http.get(`${API_BASE_URL}/collections/:collection`, ({ request }) => {
+      http.get(`${API_BASE_URL}/collections/:collection/entries`, ({ request }) => {
         requestUrl = new URL(request.url);
-        return HttpResponse.json({ success: true, data: [] });
+        return HttpResponse.json({
+          success: true,
+          data: { entries: [], total: 0 },
+        });
       })
     );
 
@@ -53,9 +59,12 @@ describe("Collections client", () => {
   it("supports OR groups combined with AND", async () => {
     let requestUrl: URL | undefined;
     server.use(
-      http.get(`${API_BASE_URL}/collections/:collection`, ({ request }) => {
+      http.get(`${API_BASE_URL}/collections/:collection/entries`, ({ request }) => {
         requestUrl = new URL(request.url);
-        return HttpResponse.json({ success: true, data: [] });
+        return HttpResponse.json({
+          success: true,
+          data: { entries: [], total: 0 },
+        });
       })
     );
 
@@ -75,9 +84,12 @@ describe("Collections client", () => {
   it("normalizes select/order and limit/offset", async () => {
     let requestUrl: URL | undefined;
     server.use(
-      http.get(`${API_BASE_URL}/collections/:collection`, ({ request }) => {
+      http.get(`${API_BASE_URL}/collections/:collection/entries`, ({ request }) => {
         requestUrl = new URL(request.url);
-        return HttpResponse.json({ success: true, data: [] });
+        return HttpResponse.json({
+          success: true,
+          data: { entries: [], total: 0 },
+        });
       })
     );
 
@@ -98,11 +110,14 @@ describe("Collections client", () => {
   it("supports getById via id.eq and limit 1", async () => {
     let requestUrl: URL | undefined;
     server.use(
-      http.get(`${API_BASE_URL}/collections/:collection`, ({ request }) => {
+      http.get(`${API_BASE_URL}/collections/:collection/entries`, ({ request }) => {
         requestUrl = new URL(request.url);
         return HttpResponse.json({
           success: true,
-          data: [{ id: "123", data: { id: "123", title: "Hello" } }],
+          data: {
+            entries: [{ id: "123", data: { id: "123", title: "Hello" } }],
+            total: 1,
+          },
         });
       })
     );
@@ -126,14 +141,17 @@ describe("Collections client", () => {
   it("returns dictionary format when requested", async () => {
     let requestUrl: URL | undefined;
     server.use(
-      http.get(`${API_BASE_URL}/collections/:collection`, ({ request }) => {
+      http.get(`${API_BASE_URL}/collections/:collection/entries`, ({ request }) => {
         requestUrl = new URL(request.url);
         return HttpResponse.json({
           success: true,
-          data: [
-            { id: "1", data: { title: "First" } },
-            { id: "2", data: { title: "Second" } },
-          ],
+          data: {
+            entries: [
+              { id: "1", data: { title: "First" } },
+              { id: "2", data: { title: "Second" } },
+            ],
+            total: 2,
+          },
         });
       })
     );
@@ -148,12 +166,15 @@ describe("Collections client", () => {
 
   it("returns raw rows when format is raw", async () => {
     server.use(
-      http.get(`${API_BASE_URL}/collections/:collection`, () => {
+      http.get(`${API_BASE_URL}/collections/:collection/entries`, () => {
         return HttpResponse.json({
           success: true,
-          data: [
-            { id: "1", data: { title: "First" }, created: "2024-01-01" },
-          ],
+          data: {
+            entries: [
+              { id: "1", data: { title: "First" }, created: "2024-01-01" },
+            ],
+            total: 1,
+          },
         });
       })
     );

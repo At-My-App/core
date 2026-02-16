@@ -11,6 +11,14 @@ import {
 import { createFetch } from "@better-fetch/fetch";
 import { buildParams } from "./params";
 import { F } from "./filter-dsl";
+import {
+  listLocalEntries,
+  applyFilter,
+  applyOrder,
+  applyPagination,
+  toRawEntries,
+  isLocalStorageAvailable,
+} from "../localFallback";
 
 /**
  * Creates a new CollectionsClient.
@@ -21,6 +29,8 @@ export const createCollectionsClient = (
   clientOptions: AtMyAppClientOptions
 ): CollectionsClient => {
   const collectionsUrl = `${clientOptions.baseUrl}/collections`;
+  const clientMode = clientOptions.clientMode ?? "online";
+  const timeoutMs = clientOptions.localStorage?.timeoutMs ?? 5000;
 
   const $fetch = createFetch({
     baseURL: collectionsUrl,
@@ -30,13 +40,77 @@ export const createCollectionsClient = (
     },
     fetch: clientOptions.customFetch,
     headers: {
-      "Cache-Control": clientOptions.mode === "priority" ? "no-cache" : "max-age=60",
+      "Cache-Control":
+        clientOptions.mode === "priority" ? "no-cache" : "max-age=60",
     },
   });
 
+  /**
+   * Fetch from API with optional timeout
+   */
+  const fetchWithTimeout = async <T>(
+    fetchFn: () => Promise<T>
+  ): Promise<{ data: T | null; error: Error | null }> => {
+    try {
+      if (clientMode === "with-fallback" && timeoutMs > 0) {
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Request timeout")), timeoutMs)
+        );
+        const data = await Promise.race([fetchFn(), timeoutPromise]);
+        return { data, error: null };
+      }
+      const data = await fetchFn();
+      return { data, error: null };
+    } catch (error) {
+      return {
+        data: null,
+        error: error instanceof Error ? error : new Error(String(error)),
+      };
+    }
+  };
+
+  /**
+   * Read collection entries from local storage with filtering, ordering, and pagination
+   */
+  const readFromLocalStorage = <Row = any>(
+    collection: string,
+    options?: CollectionsListOptions
+  ): CollectionsResponseRaw<Row> => {
+    const entries = listLocalEntries(collection, clientOptions);
+
+    // Apply filter
+    let filtered = applyFilter(entries, options?.filter);
+    const total = filtered.length;
+
+    // Apply ordering
+    filtered = applyOrder(filtered, options?.order);
+
+    // Apply pagination
+    filtered = applyPagination(filtered, {
+      range: options?.range,
+      limit: options?.limit,
+      offset: options?.offset,
+    });
+
+    // toRawEntries returns CollectionsRawEntry[], which matches Row when Row is CollectionsRawEntry<T>
+    const rawEntries = toRawEntries(filtered) as unknown as Row[];
+
+    return {
+      success: true,
+      data: {
+        entries: rawEntries,
+        total,
+      },
+    };
+  };
+
   // Overloads for listRaw
   function listRaw<
-    Def extends import("../../definitions/AmaCollection").AmaCollectionDef<string, any, any>
+    Def extends import("../../definitions/AmaCollection").AmaCollectionDef<
+      string,
+      any,
+      any
+    >,
   >(
     collection: string,
     options?: CollectionsListOptions
@@ -49,6 +123,11 @@ export const createCollectionsClient = (
     collection: string,
     options?: CollectionsListOptions
   ): Promise<CollectionsResponseRaw<Row>> {
+    // In local mode, only read from local storage
+    if (clientMode === "local") {
+      return readFromLocalStorage<Row>(collection, options);
+    }
+
     const params = buildParams(options);
     const query: Record<string, string | string[]> = {};
     params.forEach((value, key) => {
@@ -71,26 +150,76 @@ export const createCollectionsClient = (
     // Add preview key support
     const previewKey = options?.previewKey || clientOptions.previewKey;
     if (previewKey) {
-      query['amaPreviewKey'] = previewKey;
+      query["amaPreviewKey"] = previewKey;
     }
 
-    const response = (await $fetch<CollectionsResponseRaw<Row>>("/:collection/entries", {
-      params: { collection },
-      query,
-    })) as {
-      data?: CollectionsResponseRaw<Row>;
-      error?: unknown;
-    };
+    // In online mode, just fetch from API
+    if (clientMode === "online") {
+      const response = (await $fetch<CollectionsResponseRaw<Row>>(
+        "/:collection/entries",
+        {
+          params: { collection },
+          query,
+        }
+      )) as {
+        data?: CollectionsResponseRaw<Row>;
+        error?: unknown;
+      };
 
-    if (response.data) {
+      if (response.data) {
+        return response.data;
+      }
+
+      const errorInfo = response.error as
+        | string
+        | { message?: string }
+        | undefined;
+      const message =
+        typeof errorInfo === "string"
+          ? errorInfo
+          : (errorInfo?.message ?? "Collections request failed");
+
+      return {
+        success: false,
+        error: message,
+      };
+    }
+
+    // In with-fallback mode, try API first then fall back to local
+    const { data: response, error } = await fetchWithTimeout(async () => {
+      const res = (await $fetch<CollectionsResponseRaw<Row>>(
+        "/:collection/entries",
+        {
+          params: { collection },
+          query,
+        }
+      )) as {
+        data?: CollectionsResponseRaw<Row>;
+        error?: unknown;
+      };
+      return res;
+    });
+
+    if (!error && response?.data) {
       return response.data;
     }
 
-    const errorInfo = response.error as string | { message?: string } | undefined;
+    // Fallback to local storage
+    if (isLocalStorageAvailable(clientOptions)) {
+      return readFromLocalStorage<Row>(collection, options);
+    }
+
+    // Return error if fallback also failed
+    const errorInfo = response?.error as
+      | string
+      | { message?: string }
+      | undefined;
     const message =
       typeof errorInfo === "string"
         ? errorInfo
-        : errorInfo?.message ?? "Collections request failed";
+        : (errorInfo?.message ??
+          error?.message ??
+          "Collections request failed");
 
     return {
       success: false,
@@ -100,8 +229,12 @@ export const createCollectionsClient = (
 
   // Overloads for list
   function list<
-    Def extends import("../../definitions/AmaCollection").AmaCollectionDef<string, any, any>,
-    Format extends CollectionsFormat = "data"
+    Def extends import("../../definitions/AmaCollection").AmaCollectionDef<
+      string,
+      any,
+      any
+    >,
+    Format extends CollectionsFormat = "data",
   >(
     collection: string,
     options?: CollectionsListOptions<Format>
@@ -129,8 +262,12 @@ export const createCollectionsClient = (
 
   // Overloads for getById
   function getById<
-    Def extends import("../../definitions/AmaCollection").AmaCollectionDef<string, any, any>,
-    Format extends CollectionsFormat = "data"
+    Def extends import("../../definitions/AmaCollection").AmaCollectionDef<
+      string,
+      any,
+      any
+    >,
+    Format extends CollectionsFormat = "data",
   >(
     collection: string,
     id: string | number,
@@ -162,8 +299,12 @@ export const createCollectionsClient = (
 
   // Add: first helper
   async function first<
-    Def extends import("../../definitions/AmaCollection").AmaCollectionDef<string, any, any>,
-    Format extends CollectionsFormat = "data"
+    Def extends import("../../definitions/AmaCollection").AmaCollectionDef<
+      string,
+      any,
+      any
+    >,
+    Format extends CollectionsFormat = "data",
   >(
     collection: string,
     options?: CollectionsListOptions<Format>
@@ -194,19 +335,29 @@ export const createCollectionsClient = (
 
   // Add: getManyByIds helper (returns rows found, ordered by ids)
   async function getManyByIds<
-    Def extends import("../../definitions/AmaCollection").AmaCollectionDef<string, any, any>,
-    Format extends CollectionsFormat = "data"
+    Def extends import("../../definitions/AmaCollection").AmaCollectionDef<
+      string,
+      any,
+      any
+    >,
+    Format extends CollectionsFormat = "data",
   >(
     collection: string,
     ids: Array<string | number>,
     options?: CollectionsListOptions<Format>
   ): Promise<CollectionsListResult<Def["structure"]["__rowType"], Format>>;
-  async function getManyByIds<Row = any, Format extends CollectionsFormat = "data">(
+  async function getManyByIds<
+    Row = any,
+    Format extends CollectionsFormat = "data",
+  >(
     collection: string,
     ids: Array<string | number>,
     options?: CollectionsListOptions<Format>
   ): Promise<CollectionsListResult<Row, Format>>;
-  async function getManyByIds<Row = any, Format extends CollectionsFormat = "data">(
+  async function getManyByIds<
+    Row = any,
+    Format extends CollectionsFormat = "data",
+  >(
     collection: string,
     ids: Array<string | number>,
     options?: CollectionsListOptions<Format>
@@ -266,9 +417,15 @@ function transformRows<Row, Format extends CollectionsFormat = "data">(
   }
   if (effectiveFormat === "dataWithMeta") {
     const mappedRows = rows.map((entry) => entry.data as Row);
-    return { rows: mappedRows, total: safeTotal } as CollectionsListResult<Row, Format>;
+    return { rows: mappedRows, total: safeTotal } as CollectionsListResult<
+      Row,
+      Format
+    >;
   }
-  return rows.map((entry) => entry.data as Row) as CollectionsListResult<Row, Format>;
+  return rows.map((entry) => entry.data as Row) as CollectionsListResult<
+    Row,
+    Format
+  >;
 }
 
 function transformSingle<Row, Format extends CollectionsFormat = "data">(
@@ -287,12 +444,18 @@ function transformSingle<Row, Format extends CollectionsFormat = "data">(
     return row as unknown as CollectionsSingleResult<Row, Format>;
   }
   if (effectiveFormat === "dictionary") {
-    return { [String(row.id)]: row.data as Row } as CollectionsSingleResult<Row, Format>;
+    return { [String(row.id)]: row.data as Row } as CollectionsSingleResult<
+      Row,
+      Format
+    >;
   }
   if (effectiveFormat === "dataWithMeta") {
-    return { row: row.data as Row, total } as CollectionsSingleResult<Row, Format>;
+    return { row: row.data as Row, total } as CollectionsSingleResult<
+      Row,
+      Format
+    >;
   }
-  return (row.data as Row) as CollectionsSingleResult<Row, Format>;
+  return row.data as Row as CollectionsSingleResult<Row, Format>;
 }
 
 function splitFormat<Format extends CollectionsFormat = "data">(
@@ -311,4 +474,4 @@ function splitFormat<Format extends CollectionsFormat = "data">(
   };
 }
 
-export { F }
+export { F };

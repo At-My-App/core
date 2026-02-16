@@ -10,11 +10,19 @@ import { BaseDef } from "../definitions/Base";
 import { AmaContent } from "../definitions/AmaContent";
 import { AmaImage } from "../definitions/AmaImage";
 import { AmaIcon } from "../definitions/AmaIcon";
+import {
+  readLocalFile,
+  readLocalFileJson,
+  getLocalFileUrl,
+  isLocalStorageAvailable,
+} from "./localFallback";
 
 export const createStorageClient = (
   clientOptions: AtMyAppClientOptions
 ): StorageClient => {
   const storageUrl = `${clientOptions.baseUrl}/storage`;
+  const clientMode = clientOptions.clientMode ?? "online";
+  const timeoutMs = clientOptions.localStorage?.timeoutMs ?? 5000;
 
   const $fetch = createFetch({
     baseURL: storageUrl,
@@ -24,11 +32,53 @@ export const createStorageClient = (
     },
     fetch: clientOptions.customFetch,
     headers: {
-      "Cache-Control": clientOptions.mode === "priority" ? "no-cache" : "max-age=60",
+      "Cache-Control":
+        clientOptions.mode === "priority" ? "no-cache" : "max-age=60",
     },
   });
 
+  /**
+   * Fetch from API with optional timeout
+   */
+  const fetchWithTimeout = async <T>(
+    fetchFn: () => Promise<T>
+  ): Promise<{ data: T | null; error: Error | null }> => {
+    try {
+      if (clientMode === "with-fallback" && timeoutMs > 0) {
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Request timeout")), timeoutMs)
+        );
+        const data = await Promise.race([fetchFn(), timeoutPromise]);
+        return { data, error: null };
+      }
+      const data = await fetchFn();
+      return { data, error: null };
+    } catch (error) {
+      return {
+        data: null,
+        error: error instanceof Error ? error : new Error(String(error)),
+      };
+    }
+  };
+
   const getRaw = async (path: string, options?: StorageGetOptions) => {
+    // In local mode, only read from local storage
+    if (clientMode === "local") {
+      const localData = readLocalFileJson(path, clientOptions);
+      if (localData !== null) {
+        return { data: localData, error: undefined };
+      }
+      // Try reading as raw file
+      const rawData = readLocalFile(path, clientOptions);
+      if (rawData !== null) {
+        return { data: rawData, error: undefined };
+      }
+      return {
+        data: undefined,
+        error: { status: 404, message: "File not found in local storage" },
+      };
+    }
+
     const previewKey = options?.previewKey || clientOptions.previewKey;
 
     const query: Record<string, string> = {};
@@ -36,14 +86,50 @@ export const createStorageClient = (
       query.amaPreviewKey = previewKey;
     }
 
-    const response = await $fetch("/f/:path", {
-      params: {
-        path: cleanPath(path),
-      },
-      query,
-    });
+    // In online mode, just fetch from API
+    if (clientMode === "online") {
+      const response = await $fetch("/f/:path", {
+        params: {
+          path: cleanPath(path),
+        },
+        query,
+      });
+      return response;
+    }
 
-    return response;
+    // In with-fallback mode, try API first then fall back to local
+    const { data: response, error } = await fetchWithTimeout(() =>
+      $fetch("/f/:path", {
+        params: {
+          path: cleanPath(path),
+        },
+        query,
+      })
+    );
+
+    if (!error && response?.data) {
+      return response;
+    }
+
+    // Fallback to local storage
+    if (isLocalStorageAvailable(clientOptions)) {
+      const localData = readLocalFileJson(path, clientOptions);
+      if (localData !== null) {
+        return { data: localData, error: undefined };
+      }
+      const rawData = readLocalFile(path, clientOptions);
+      if (rawData !== null) {
+        return { data: rawData, error: undefined };
+      }
+    }
+
+    // Return original error if fallback also failed
+    return (
+      response ?? {
+        data: undefined,
+        error: { status: 500, message: error?.message ?? "Request failed" },
+      }
+    );
   };
 
   const getFromPath = async (path: string, options?: StorageGetOptions) => {
@@ -167,10 +253,12 @@ export const createStorageClient = (
     throw new Error(`Unsupported mode: ${mode}`);
   };
 
-  const getStaticUrl = async (
-    path: string,
-    options?: StorageGetOptions
-  ) => {
+  const getStaticUrl = async (path: string, options?: StorageGetOptions) => {
+    // In local mode, return file:// URL
+    if (clientMode === "local") {
+      return getLocalFileUrl(path, clientOptions);
+    }
+
     const previewKey = options?.previewKey || clientOptions.previewKey;
 
     const query: Record<string, string> = {};
@@ -178,23 +266,52 @@ export const createStorageClient = (
       query.amaPreviewKey = previewKey;
     }
 
-    const response = await $fetch<{
-      success: boolean;
-      data: {
-        staticUrl: string;
-      };
-    }>("/static/:path", {
-      params: {
-        path: cleanPath(path),
-      },
-      query,
-    });
+    // In online mode, just fetch from API
+    if (clientMode === "online") {
+      const response = await $fetch<{
+        success: boolean;
+        data: {
+          staticUrl: string;
+        };
+      }>("/static/:path", {
+        params: {
+          path: cleanPath(path),
+        },
+        query,
+      });
 
-    if (response.data && response.data.success) {
+      if (response.data && response.data.success) {
+        return response.data.data.staticUrl;
+      }
+
+      throw new Error("Failed to get static URL");
+    }
+
+    // In with-fallback mode, try API first then fall back to local
+    const { data: response, error } = await fetchWithTimeout(() =>
+      $fetch<{
+        success: boolean;
+        data: {
+          staticUrl: string;
+        };
+      }>("/static/:path", {
+        params: {
+          path: cleanPath(path),
+        },
+        query,
+      })
+    );
+
+    if (!error && response?.data?.success) {
       return response.data.data.staticUrl;
     }
 
-    throw new Error("Failed to get static URL");
+    // Fallback to local file:// URL
+    if (isLocalStorageAvailable(clientOptions)) {
+      return getLocalFileUrl(path, clientOptions);
+    }
+
+    throw new Error(error?.message ?? "Failed to get static URL");
   };
 
   return {

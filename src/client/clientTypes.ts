@@ -16,19 +16,37 @@ export type StorageGetOptions = {
 };
 
 export type StorageClient = {
-  getFromPath: (
-    path: string,
-    options?: StorageGetOptions
-  ) => Promise<unknown>;
+  getFromPath: (path: string, options?: StorageGetOptions) => Promise<unknown>;
   get<Ref extends BaseDef<string, unknown, string>>(
     path: Ref["path"],
     mode: Ref["type"],
     options?: StorageGetOptions
   ): Promise<Ref["returnType"]>;
-  getStaticUrl: (
-    path: string,
-    options?: StorageGetOptions
-  ) => Promise<string>;
+  getStaticUrl: (path: string, options?: StorageGetOptions) => Promise<string>;
+};
+
+/**
+ * Client mode determines how the client fetches data:
+ * - 'online': Always fetch from the API (default)
+ * - 'with-fallback': Try API first, fall back to local storage on failure
+ * - 'local': Only read from local storage (offline mode)
+ */
+export type ClientMode = "online" | "with-fallback" | "local";
+
+/**
+ * Configuration for local storage fallback
+ */
+export type LocalStorageOptions = {
+  /**
+   * Path to the extracted snapshot directory, relative to process.cwd()
+   * @default '.ama/local'
+   */
+  path?: string;
+  /**
+   * Timeout in milliseconds before falling back to local storage (only used in 'with-fallback' mode)
+   * @default 5000
+   */
+  timeoutMs?: number;
 };
 
 export type AtMyAppClientOptions = {
@@ -40,7 +58,16 @@ export type AtMyAppClientOptions = {
   /**
    * 'client' for client-side requests with cache, 'priority' for requests to server without cache (mainly for server-side rendering, higher usage cost)
    */
-  mode?: 'client' | 'priority';
+  mode?: "client" | "priority";
+  /**
+   * Client mode for data fetching strategy
+   * @default 'online'
+   */
+  clientMode?: ClientMode;
+  /**
+   * Local storage configuration for fallback/local modes
+   */
+  localStorage?: LocalStorageOptions;
 };
 
 export type AnalyticsClient = {
@@ -77,23 +104,27 @@ export type CollectionsRawEntry<Row = any> = {
   [key: string]: unknown;
 };
 
-export type CollectionsListResult<Row, Format extends CollectionsFormat = "data"> =
-  Format extends "raw"
-    ? CollectionsRawEntry<Row>[]
-    : Format extends "dictionary"
+export type CollectionsListResult<
+  Row,
+  Format extends CollectionsFormat = "data",
+> = Format extends "raw"
+  ? CollectionsRawEntry<Row>[]
+  : Format extends "dictionary"
     ? Record<string, Row>
     : Format extends "dataWithMeta"
-    ? CollectionsListWithMeta<Row>
-    : Row[];
+      ? CollectionsListWithMeta<Row>
+      : Row[];
 
-export type CollectionsSingleResult<Row, Format extends CollectionsFormat = "data"> =
-  Format extends "raw"
-    ? CollectionsRawEntry<Row> | null
-    : Format extends "dictionary"
+export type CollectionsSingleResult<
+  Row,
+  Format extends CollectionsFormat = "data",
+> = Format extends "raw"
+  ? CollectionsRawEntry<Row> | null
+  : Format extends "dictionary"
     ? Record<string, Row> | null
     : Format extends "dataWithMeta"
-    ? CollectionsSingleWithMeta<Row>
-    : Row | null;
+      ? CollectionsSingleWithMeta<Row>
+      : Row | null;
 
 export type CollectionsFilterExpr =
   | {
@@ -106,22 +137,23 @@ export type CollectionsFilterExpr =
   | { type: "or"; conditions: CollectionsFilterExpr[] }
   | { type: "not"; condition: CollectionsFilterExpr };
 
-export type CollectionsListOptions<Format extends CollectionsFormat = "data"> = {
-  select?:
-    | "id"
-    | "data"
-    | "created"
-    | "updated"
-    | Array<"id" | "data" | "created" | "updated">;
-  order?: `${"id" | "created" | "updated"}${"" | ".asc" | ".desc"}`;
-  range?: [number, number];
-  limit?: number;
-  offset?: number;
-  filter?: CollectionsFilterExpr;
-  previewKey?: string;
-  plugins?: string[];
-  format?: Format;
-};
+export type CollectionsListOptions<Format extends CollectionsFormat = "data"> =
+  {
+    select?:
+      | "id"
+      | "data"
+      | "created"
+      | "updated"
+      | Array<"id" | "data" | "created" | "updated">;
+    order?: `${"id" | "created" | "updated"}${"" | ".asc" | ".desc"}`;
+    range?: [number, number];
+    limit?: number;
+    offset?: number;
+    filter?: CollectionsFilterExpr;
+    previewKey?: string;
+    plugins?: string[];
+    format?: Format;
+  };
 
 export type CollectionsResponse<Row = any> = {
   success: boolean;
@@ -134,14 +166,18 @@ export type CollectionsResponseRaw<Row = any> = {
   data?: {
     entries: Row[];
     total: number;
-  }
+  };
   error?: string;
 };
 
 export type CollectionsClient = {
   // listRaw overloads (typed via AmaCollectionDef or generic Row)
   listRaw<
-    Def extends import("../definitions/AmaCollection").AmaCollectionDef<string, any, any>
+    Def extends import("../definitions/AmaCollection").AmaCollectionDef<
+      string,
+      any,
+      any
+    >,
   >(
     collection: string,
     options?: CollectionsListOptions
@@ -153,8 +189,12 @@ export type CollectionsClient = {
 
   // list overloads (typed via AmaCollectionDef or generic Row)
   list<
-    Def extends import("../definitions/AmaCollection").AmaCollectionDef<string, any, any>,
-    Format extends CollectionsFormat = "data"
+    Def extends import("../definitions/AmaCollection").AmaCollectionDef<
+      string,
+      any,
+      any
+    >,
+    Format extends CollectionsFormat = "data",
   >(
     collection: string,
     options?: CollectionsListOptions<Format>
@@ -166,8 +206,12 @@ export type CollectionsClient = {
 
   // getById overloads (typed via AmaCollectionDef or generic Row)
   getById<
-    Def extends import("../definitions/AmaCollection").AmaCollectionDef<string, any, any>,
-    Format extends CollectionsFormat = "data"
+    Def extends import("../definitions/AmaCollection").AmaCollectionDef<
+      string,
+      any,
+      any
+    >,
+    Format extends CollectionsFormat = "data",
   >(
     collection: string,
     id: string | number,
@@ -181,8 +225,12 @@ export type CollectionsClient = {
 
   // Add: first helper
   first<
-    Def extends import("../definitions/AmaCollection").AmaCollectionDef<string, any, any>,
-    Format extends CollectionsFormat = "data"
+    Def extends import("../definitions/AmaCollection").AmaCollectionDef<
+      string,
+      any,
+      any
+    >,
+    Format extends CollectionsFormat = "data",
   >(
     collection: string,
     options?: CollectionsListOptions<Format>
@@ -194,8 +242,12 @@ export type CollectionsClient = {
 
   // Add: getManyByIds helper
   getManyByIds<
-    Def extends import("../definitions/AmaCollection").AmaCollectionDef<string, any, any>,
-    Format extends CollectionsFormat = "data"
+    Def extends import("../definitions/AmaCollection").AmaCollectionDef<
+      string,
+      any,
+      any
+    >,
+    Format extends CollectionsFormat = "data",
   >(
     collection: string,
     ids: Array<string | number>,

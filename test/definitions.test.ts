@@ -5,6 +5,11 @@ import {
   AmaCustomEvent,
   AmaCustomEventDef,
 } from "../src/definitions/AmaCustomEvent";
+import {
+  AmaComponentDef,
+  AmaMdxConfigDef,
+  AmaMdxFieldDef,
+} from "../src/definitions/AmaMdx";
 
 describe("Type Definitions", () => {
   describe("AmaEvent", () => {
@@ -166,6 +171,25 @@ describe("Type Definitions", () => {
       // These should be the only allowed keys based on the columns type
       expect(customEventData.user_id).toBe("12345");
       expect(customEventData.product_id).toBe("abc123");
+    });
+  });
+
+  describe("AmaMdx", () => {
+    it("should define mdx configs and fields", () => {
+      type Callout = AmaComponentDef<
+        "Callout",
+        { title: string; count: number }
+      >;
+      type BlogMdxConfig = AmaMdxConfigDef<"blogComponents", [Callout]>;
+      type BlogRow = { body: AmaMdxFieldDef<BlogMdxConfig> };
+
+      const field: BlogRow["body"] = {
+        __amatype: "AmaMdxDef",
+        mdxConfig: "blogComponents",
+      };
+
+      expect(field.__amatype).toBe("AmaMdxDef");
+      expect(field.mdxConfig).toBe("blogComponents");
     });
   });
 });
