@@ -14,6 +14,9 @@ export {
   ClientMode,
   LocalStorageOptions,
 } from "./client/clientTypes";
+export type { MetaClient } from "./client/meta";
+export type { AtMyAppHeadConfig } from "./client/metaTypes";
+export type { AtMyAppConfig, AtMyAppConfigArgs } from "./client/configTypes";
 export { createCollectionsClient } from "./client/collections";
 export { F as CollectionsFilter } from "./client/collections/filter-dsl";
 

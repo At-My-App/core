@@ -12,6 +12,13 @@ export const preview_json = {
   data: 2,
 };
 
+export const default_head_config = {
+  title: "AtMyApp default title",
+  description: "AtMyApp default description",
+  robots: "index, follow",
+  canonical: "https://example.com",
+};
+
 export const handlers = [
   // Handler for GET requests to /storage/f/file.json
   http.get(`${API_BASE_URL}/storage/f/file.json`, () => {
@@ -32,7 +39,7 @@ export const handlers = [
           {
             status: 500,
             headers: { "Content-Type": "application/json" },
-          }
+          },
         );
       }
 
@@ -43,13 +50,40 @@ export const handlers = [
           {
             status: 400,
             headers: { "Content-Type": "application/json" },
-          }
+          },
         );
       }
 
       return HttpResponse.json({ success: true, eventId });
-    }
+    },
   ),
+
+  // Head config handler
+  http.get(`${API_BASE_URL}/meta/sites/:siteId/head`, ({ params }) => {
+    const siteId = params.siteId as string;
+
+    if (siteId === "missing") {
+      return new HttpResponse(null, { status: 404 });
+    }
+
+    if (siteId === "error") {
+      return new HttpResponse(
+        JSON.stringify({ error: "Meta head config failed" }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    return HttpResponse.json({
+      success: true,
+      data: {
+        ...default_head_config,
+        siteId,
+      },
+    });
+  }),
 
   // Default handler for paths not explicitly defined
   http.get(`${API_BASE_URL}/storage/f/:path`, ({ params }) => {
@@ -70,7 +104,7 @@ export const handlers = [
         {
           status: 500,
           headers: { "Content-Type": "application/json" },
-        }
+        },
       );
     }
 

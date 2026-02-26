@@ -1,10 +1,11 @@
-import * as fs from "fs";
-import * as path from "path";
 import {
   AtMyAppClientOptions,
   CollectionsFilterExpr,
   CollectionsRawEntry,
 } from "./clientTypes";
+
+type NodeFs = typeof import("fs");
+type NodePath = typeof import("path");
 
 /**
  * Snapshot manifest structure
@@ -54,40 +55,95 @@ interface SnapshotEntry {
 
 const DEFAULT_LOCAL_PATH = ".ama/local";
 
+let nodeFs: NodeFs | null = null;
+let nodePath: NodePath | null = null;
+let nodeModulesResolved = false;
+
+function getNodeModules(): { fs: NodeFs; path: NodePath } | null {
+  if (nodeModulesResolved) {
+    return nodeFs && nodePath ? { fs: nodeFs, path: nodePath } : null;
+  }
+
+  nodeModulesResolved = true;
+
+  if (typeof process === "undefined" || !process.versions?.node) {
+    return null;
+  }
+
+  try {
+    const nodeRequireFactory = Function("return require") as () => (
+      id: string,
+    ) => unknown;
+    const nodeRequire = nodeRequireFactory();
+    nodeFs = nodeRequire("fs") as NodeFs;
+    nodePath = nodeRequire("path") as NodePath;
+    return { fs: nodeFs, path: nodePath };
+  } catch {
+    nodeFs = null;
+    nodePath = null;
+    return null;
+  }
+}
+
+function getResolvedLocalStoragePath(
+  options: AtMyAppClientOptions,
+): string | null {
+  const modules = getNodeModules();
+  if (!modules) {
+    return null;
+  }
+
+  const localPath = options.localStorage?.path ?? DEFAULT_LOCAL_PATH;
+  return modules.path.resolve(process.cwd(), localPath);
+}
+
 /**
  * Get the resolved local storage path
  */
 export function getLocalStoragePath(options: AtMyAppClientOptions): string {
-  const localPath = options.localStorage?.path ?? DEFAULT_LOCAL_PATH;
-  return path.resolve(process.cwd(), localPath);
+  return (
+    getResolvedLocalStoragePath(options) ??
+    options.localStorage?.path ??
+    DEFAULT_LOCAL_PATH
+  );
 }
 
 /**
  * Check if local storage exists and is valid
  */
 export function isLocalStorageAvailable(
-  options: AtMyAppClientOptions
+  options: AtMyAppClientOptions,
 ): boolean {
-  const basePath = getLocalStoragePath(options);
-  const manifestPath = path.join(basePath, "manifest.json");
-  return fs.existsSync(manifestPath);
+  const modules = getNodeModules();
+  const basePath = getResolvedLocalStoragePath(options);
+  if (!modules || !basePath) {
+    return false;
+  }
+
+  const manifestPath = modules.path.join(basePath, "manifest.json");
+  return modules.fs.existsSync(manifestPath);
 }
 
 /**
  * Load the snapshot manifest
  */
 export function loadManifest(
-  options: AtMyAppClientOptions
+  options: AtMyAppClientOptions,
 ): SnapshotManifest | null {
-  const basePath = getLocalStoragePath(options);
-  const manifestPath = path.join(basePath, "manifest.json");
+  const modules = getNodeModules();
+  const basePath = getResolvedLocalStoragePath(options);
+  if (!modules || !basePath) {
+    return null;
+  }
 
-  if (!fs.existsSync(manifestPath)) {
+  const manifestPath = modules.path.join(basePath, "manifest.json");
+
+  if (!modules.fs.existsSync(manifestPath)) {
     return null;
   }
 
   try {
-    return JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
+    return JSON.parse(modules.fs.readFileSync(manifestPath, "utf-8"));
   } catch {
     return null;
   }
@@ -98,17 +154,22 @@ export function loadManifest(
  */
 export function readLocalFile(
   filePath: string,
-  options: AtMyAppClientOptions
+  options: AtMyAppClientOptions,
 ): Buffer | null {
-  const basePath = getLocalStoragePath(options);
-  const fullPath = path.join(basePath, "f", filePath);
+  const modules = getNodeModules();
+  const basePath = getResolvedLocalStoragePath(options);
+  if (!modules || !basePath) {
+    return null;
+  }
 
-  if (!fs.existsSync(fullPath)) {
+  const fullPath = modules.path.join(basePath, "f", filePath);
+
+  if (!modules.fs.existsSync(fullPath)) {
     return null;
   }
 
   try {
-    return fs.readFileSync(fullPath);
+    return modules.fs.readFileSync(fullPath);
   } catch {
     return null;
   }
@@ -119,7 +180,7 @@ export function readLocalFile(
  */
 export function readLocalFileJson<T = unknown>(
   filePath: string,
-  options: AtMyAppClientOptions
+  options: AtMyAppClientOptions,
 ): T | null {
   const buffer = readLocalFile(filePath, options);
   if (!buffer) {
@@ -138,10 +199,17 @@ export function readLocalFileJson<T = unknown>(
  */
 export function getLocalFileUrl(
   filePath: string,
-  options: AtMyAppClientOptions
+  options: AtMyAppClientOptions,
 ): string {
-  const basePath = getLocalStoragePath(options);
-  const fullPath = path.join(basePath, "f", filePath);
+  const modules = getNodeModules();
+  const basePath = getResolvedLocalStoragePath(options);
+  if (!modules || !basePath) {
+    throw new Error(
+      "AtMyApp: local file URLs are only available in Node.js runtime",
+    );
+  }
+
+  const fullPath = modules.path.join(basePath, "f", filePath);
   return `file://${fullPath.replace(/\\/g, "/")}`;
 }
 
@@ -151,23 +219,28 @@ export function getLocalFileUrl(
 export function readLocalEntry(
   collectionName: string,
   entryId: string | number,
-  options: AtMyAppClientOptions
+  options: AtMyAppClientOptions,
 ): SnapshotEntry | null {
-  const basePath = getLocalStoragePath(options);
-  const entryPath = path.join(
+  const modules = getNodeModules();
+  const basePath = getResolvedLocalStoragePath(options);
+  if (!modules || !basePath) {
+    return null;
+  }
+
+  const entryPath = modules.path.join(
     basePath,
     "collections",
     collectionName,
     String(entryId),
-    "entry.json"
+    "entry.json",
   );
 
-  if (!fs.existsSync(entryPath)) {
+  if (!modules.fs.existsSync(entryPath)) {
     return null;
   }
 
   try {
-    return JSON.parse(fs.readFileSync(entryPath, "utf-8"));
+    return JSON.parse(modules.fs.readFileSync(entryPath, "utf-8"));
   } catch {
     return null;
   }
@@ -178,27 +251,42 @@ export function readLocalEntry(
  */
 export function listLocalEntries(
   collectionName: string,
-  options: AtMyAppClientOptions
+  options: AtMyAppClientOptions,
 ): SnapshotEntry[] {
-  const basePath = getLocalStoragePath(options);
-  const collectionDir = path.join(basePath, "collections", collectionName);
+  const modules = getNodeModules();
+  const basePath = getResolvedLocalStoragePath(options);
+  if (!modules || !basePath) {
+    return [];
+  }
 
-  if (!fs.existsSync(collectionDir)) {
+  const collectionDir = modules.path.join(
+    basePath,
+    "collections",
+    collectionName,
+  );
+
+  if (!modules.fs.existsSync(collectionDir)) {
     return [];
   }
 
   const entries: SnapshotEntry[] = [];
 
   try {
-    const entryDirs = fs.readdirSync(collectionDir, { withFileTypes: true });
+    const entryDirs = modules.fs.readdirSync(collectionDir, {
+      withFileTypes: true,
+    });
 
     for (const dirent of entryDirs) {
       if (!dirent.isDirectory()) continue;
 
-      const entryPath = path.join(collectionDir, dirent.name, "entry.json");
-      if (fs.existsSync(entryPath)) {
+      const entryPath = modules.path.join(
+        collectionDir,
+        dirent.name,
+        "entry.json",
+      );
+      if (modules.fs.existsSync(entryPath)) {
         try {
-          const entry = JSON.parse(fs.readFileSync(entryPath, "utf-8"));
+          const entry = JSON.parse(modules.fs.readFileSync(entryPath, "utf-8"));
           entries.push(entry);
         } catch {
           // Skip invalid entries
@@ -219,26 +307,33 @@ export function readLocalBlob(
   collectionName: string,
   entryId: string | number,
   blobId: string,
-  options: AtMyAppClientOptions
+  options: AtMyAppClientOptions,
 ): Buffer | null {
-  const basePath = getLocalStoragePath(options);
-  const entryDir = path.join(
+  const modules = getNodeModules();
+  const basePath = getResolvedLocalStoragePath(options);
+  if (!modules || !basePath) {
+    return null;
+  }
+
+  const entryDir = modules.path.join(
     basePath,
     "collections",
     collectionName,
-    String(entryId)
+    String(entryId),
   );
 
-  if (!fs.existsSync(entryDir)) {
+  if (!modules.fs.existsSync(entryDir)) {
     return null;
   }
 
   try {
-    const files = fs.readdirSync(entryDir);
-    const blobFile = files.find((f) => f.startsWith(`blob_${blobId}.`));
+    const files = modules.fs.readdirSync(entryDir);
+    const blobFile = files.find((fileName: string) =>
+      fileName.startsWith(`blob_${blobId}.`),
+    );
 
     if (blobFile) {
-      return fs.readFileSync(path.join(entryDir, blobFile));
+      return modules.fs.readFileSync(modules.path.join(entryDir, blobFile));
     }
   } catch {
     // Ignore errors
@@ -256,15 +351,20 @@ export function listLocalCollections(options: AtMyAppClientOptions): string[] {
     return Object.keys(manifest.collections);
   }
 
-  const basePath = getLocalStoragePath(options);
-  const collectionsDir = path.join(basePath, "collections");
+  const modules = getNodeModules();
+  const basePath = getResolvedLocalStoragePath(options);
+  if (!modules || !basePath) {
+    return [];
+  }
 
-  if (!fs.existsSync(collectionsDir)) {
+  const collectionsDir = modules.path.join(basePath, "collections");
+
+  if (!modules.fs.existsSync(collectionsDir)) {
     return [];
   }
 
   try {
-    return fs
+    return modules.fs
       .readdirSync(collectionsDir, { withFileTypes: true })
       .filter((d) => d.isDirectory())
       .map((d) => d.name);
@@ -278,7 +378,7 @@ export function listLocalCollections(options: AtMyAppClientOptions): string[] {
  */
 export function applyFilter(
   entries: SnapshotEntry[],
-  filter: CollectionsFilterExpr | undefined
+  filter: CollectionsFilterExpr | undefined,
 ): SnapshotEntry[] {
   if (!filter) {
     return entries;
@@ -289,7 +389,7 @@ export function applyFilter(
 
 function evaluateFilter(
   entry: SnapshotEntry,
-  filter: CollectionsFilterExpr
+  filter: CollectionsFilterExpr,
 ): boolean {
   switch (filter.type) {
     case "comparison":
@@ -307,7 +407,7 @@ function evaluateFilter(
 
 function evaluateComparison(
   entry: SnapshotEntry,
-  filter: Extract<CollectionsFilterExpr, { type: "comparison" }>
+  filter: Extract<CollectionsFilterExpr, { type: "comparison" }>,
 ): boolean {
   const { field, op, value } = filter;
 
@@ -398,7 +498,7 @@ function compare(a: unknown, b: unknown): number {
  */
 export function applyOrder(
   entries: SnapshotEntry[],
-  order: string | undefined
+  order: string | undefined,
 ): SnapshotEntry[] {
   if (!order) {
     return entries;
@@ -442,7 +542,7 @@ export function applyPagination(
     range?: [number, number];
     limit?: number;
     offset?: number;
-  }
+  },
 ): SnapshotEntry[] {
   if (!options) {
     return entries;

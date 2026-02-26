@@ -4,11 +4,13 @@ import {
 } from "../definitions/AmaCustomEvent";
 import { AmaEvent, AmaEventDef } from "../definitions/AmaEvent";
 import { BaseDef } from "../definitions/Base";
+import type { MetaClient } from "./meta";
 
 export type AtMyAppClient = {
   storage: StorageClient;
   analytics: AnalyticsClient;
   collections: CollectionsClient;
+  meta: MetaClient;
 };
 
 export type StorageGetOptions = {
@@ -20,7 +22,7 @@ export type StorageClient = {
   get<Ref extends BaseDef<string, unknown, string>>(
     path: Ref["path"],
     mode: Ref["type"],
-    options?: StorageGetOptions
+    options?: StorageGetOptions,
   ): Promise<Ref["returnType"]>;
   getStaticUrl: (path: string, options?: StorageGetOptions) => Promise<string>;
 };
@@ -73,11 +75,11 @@ export type AtMyAppClientOptions = {
 export type AnalyticsClient = {
   trackCustomEvent: <Event extends AmaCustomEventDef<string, string[]>>(
     eventId: Event["id"],
-    data: Record<Event["columns"][number], any> | string[]
+    data: Record<Event["columns"][number], any> | string[],
   ) => Promise<boolean>;
 
   trackEvent: <Event extends AmaEventDef<string>>(
-    eventId: Event["id"]
+    eventId: Event["id"],
   ) => Promise<boolean>;
 };
 
@@ -180,11 +182,11 @@ export type CollectionsClient = {
     >,
   >(
     collection: string,
-    options?: CollectionsListOptions
+    options?: CollectionsListOptions,
   ): Promise<CollectionsResponseRaw<Def["structure"]["__rowType"]>>;
   listRaw<Row = any>(
     collection: string,
-    options?: CollectionsListOptions
+    options?: CollectionsListOptions,
   ): Promise<CollectionsResponseRaw<Row>>;
 
   // list overloads (typed via AmaCollectionDef or generic Row)
@@ -197,11 +199,11 @@ export type CollectionsClient = {
     Format extends CollectionsFormat = "data",
   >(
     collection: string,
-    options?: CollectionsListOptions<Format>
+    options?: CollectionsListOptions<Format>,
   ): Promise<CollectionsListResult<Def["structure"]["__rowType"], Format>>;
   list<Row = any, Format extends CollectionsFormat = "data">(
     collection: string,
-    options?: CollectionsListOptions<Format>
+    options?: CollectionsListOptions<Format>,
   ): Promise<CollectionsListResult<Row, Format>>;
 
   // getById overloads (typed via AmaCollectionDef or generic Row)
@@ -215,12 +217,12 @@ export type CollectionsClient = {
   >(
     collection: string,
     id: string | number,
-    options?: CollectionsListOptions<Format>
+    options?: CollectionsListOptions<Format>,
   ): Promise<CollectionsSingleResult<Def["structure"]["__rowType"], Format>>;
   getById<Row = any, Format extends CollectionsFormat = "data">(
     collection: string,
     id: string | number,
-    options?: CollectionsListOptions<Format>
+    options?: CollectionsListOptions<Format>,
   ): Promise<CollectionsSingleResult<Row, Format>>;
 
   // Add: first helper
@@ -233,11 +235,11 @@ export type CollectionsClient = {
     Format extends CollectionsFormat = "data",
   >(
     collection: string,
-    options?: CollectionsListOptions<Format>
+    options?: CollectionsListOptions<Format>,
   ): Promise<CollectionsSingleResult<Def["structure"]["__rowType"], Format>>;
   first<Row = any, Format extends CollectionsFormat = "data">(
     collection: string,
-    options?: CollectionsListOptions<Format>
+    options?: CollectionsListOptions<Format>,
   ): Promise<CollectionsSingleResult<Row, Format>>;
 
   // Add: getManyByIds helper
@@ -251,11 +253,11 @@ export type CollectionsClient = {
   >(
     collection: string,
     ids: Array<string | number>,
-    options?: CollectionsListOptions<Format>
+    options?: CollectionsListOptions<Format>,
   ): Promise<CollectionsListResult<Def["structure"]["__rowType"], Format>>;
   getManyByIds<Row = any, Format extends CollectionsFormat = "data">(
     collection: string,
     ids: Array<string | number>,
-    options?: CollectionsListOptions<Format>
+    options?: CollectionsListOptions<Format>,
   ): Promise<CollectionsListResult<Row, Format>>;
 };
