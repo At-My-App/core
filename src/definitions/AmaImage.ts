@@ -22,7 +22,7 @@ export interface AmaImageConfig {
 export interface AmaImageDef<Path extends string, Config extends AmaImageConfig>
   extends BaseDef<Path, AmaImage<any>, "image"> {
   structure: {
-    __amatype: "AmaImage";
+    __amatype: "AmaImageDef";
     __config: Config;
   };
 }

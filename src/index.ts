@@ -35,3 +35,4 @@ export {
   AmaMdxFieldDef,
 } from "./definitions/AmaMdx";
 export { AmaCollection, AmaCollectionDef } from "./definitions/AmaCollection";
+export * from "@atmyapp/structure";

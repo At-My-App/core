@@ -10,6 +10,8 @@ import {
   AmaMdxConfigDef,
   AmaMdxFieldDef,
 } from "../src/definitions/AmaMdx";
+import { AmaImageDef } from "../src/definitions/AmaImage";
+import { AmaIconDef } from "../src/definitions/AmaIcon";
 
 describe("Type Definitions", () => {
   describe("AmaEvent", () => {
@@ -190,6 +192,35 @@ describe("Type Definitions", () => {
 
       expect(field.__amatype).toBe("AmaMdxDef");
       expect(field.mdxConfig).toBe("blogComponents");
+    });
+  });
+
+  describe("Asset Definitions", () => {
+    it("should expose the canonical image definition marker", () => {
+      const imageDef: AmaImageDef<"hero.png", { optimizeFormat: "webp" }> = {
+        path: "hero.png",
+        type: "image",
+        structure: {
+          __amatype: "AmaImageDef",
+          __config: {
+            optimizeFormat: "webp",
+          },
+        },
+      };
+
+      expect(imageDef.structure.__amatype).toBe("AmaImageDef");
+    });
+
+    it("should expose the canonical icon definition marker", () => {
+      const iconDef: AmaIconDef<"logo.svg"> = {
+        path: "logo.svg",
+        type: "icon",
+        structure: {
+          __amatype: "AmaIconDef",
+        },
+      };
+
+      expect(iconDef.structure.__amatype).toBe("AmaIconDef");
     });
   });
 });
