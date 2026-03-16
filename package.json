@@ -1,6 +1,6 @@
 {
   "name": "@atmyapp/core",
-  "version": "0.0.18",
+  "version": "0.1.0-alpha.1",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "repository": {
@@ -35,7 +35,7 @@
     "typescript": "^5.8.3"
   },
   "dependencies": {
-    "@atmyapp/structure": "^0.0.1",
+    "@atmyapp/structure": "^0.1.0-alpha.1",
     "@better-fetch/fetch": "^1.1.18"
   }
 }
