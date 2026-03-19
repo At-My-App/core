@@ -11,10 +11,10 @@ import { AmaContent } from "../definitions/AmaContent";
 import { AmaImage } from "../definitions/AmaImage";
 import { AmaIcon } from "../definitions/AmaIcon";
 import {
-  readLocalFile,
-  readLocalFileJson,
-  getLocalFileUrl,
-  isLocalStorageAvailable,
+  getLocalStaticUrl,
+  isAnyLocalDataAvailable,
+  readLocalFileValue,
+  readLocalJsonValue,
 } from "./localFallback";
 
 export const createStorageClient = (
@@ -64,12 +64,12 @@ export const createStorageClient = (
   const getRaw = async (path: string, options?: StorageGetOptions) => {
     // In local mode, only read from local storage
     if (clientMode === "local") {
-      const localData = readLocalFileJson(path, clientOptions);
+      const localData = await readLocalJsonValue(path, clientOptions);
       if (localData !== null) {
         return { data: localData, error: undefined };
       }
       // Try reading as raw file
-      const rawData = readLocalFile(path, clientOptions);
+      const rawData = await readLocalFileValue(path, clientOptions);
       if (rawData !== null) {
         return { data: rawData, error: undefined };
       }
@@ -112,12 +112,12 @@ export const createStorageClient = (
     }
 
     // Fallback to local storage
-    if (isLocalStorageAvailable(clientOptions)) {
-      const localData = readLocalFileJson(path, clientOptions);
+    if (await isAnyLocalDataAvailable(clientOptions)) {
+      const localData = await readLocalJsonValue(path, clientOptions);
       if (localData !== null) {
         return { data: localData, error: undefined };
       }
-      const rawData = readLocalFile(path, clientOptions);
+      const rawData = await readLocalFileValue(path, clientOptions);
       if (rawData !== null) {
         return { data: rawData, error: undefined };
       }
@@ -256,7 +256,7 @@ export const createStorageClient = (
   const getStaticUrl = async (path: string, options?: StorageGetOptions) => {
     // In local mode, return file:// URL
     if (clientMode === "local") {
-      return getLocalFileUrl(path, clientOptions);
+      return getLocalStaticUrl(path, clientOptions);
     }
 
     const previewKey = options?.previewKey || clientOptions.previewKey;
@@ -307,8 +307,8 @@ export const createStorageClient = (
     }
 
     // Fallback to local file:// URL
-    if (isLocalStorageAvailable(clientOptions)) {
-      return getLocalFileUrl(path, clientOptions);
+    if (await isAnyLocalDataAvailable(clientOptions)) {
+      return getLocalStaticUrl(path, clientOptions);
     }
 
     throw new Error(error?.message ?? "Failed to get static URL");

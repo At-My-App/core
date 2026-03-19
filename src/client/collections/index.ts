@@ -12,12 +12,12 @@ import { createFetch } from "@better-fetch/fetch";
 import { buildParams } from "./params";
 import { F } from "./filter-dsl";
 import {
-  listLocalEntries,
   applyFilter,
   applyOrder,
   applyPagination,
   toRawEntries,
-  isLocalStorageAvailable,
+  isAnyLocalDataAvailable,
+  listLocalEntriesFromAnySource,
 } from "../localFallback";
 
 /**
@@ -72,11 +72,11 @@ export const createCollectionsClient = (
   /**
    * Read collection entries from local storage with filtering, ordering, and pagination
    */
-  const readFromLocalStorage = <Row = any>(
+  const readFromLocalStorage = async <Row = any>(
     collection: string,
     options?: CollectionsListOptions
-  ): CollectionsResponseRaw<Row> => {
-    const entries = listLocalEntries(collection, clientOptions);
+  ): Promise<CollectionsResponseRaw<Row>> => {
+    const entries = await listLocalEntriesFromAnySource(collection, clientOptions);
 
     // Apply filter
     let filtered = applyFilter(entries, options?.filter);
@@ -205,7 +205,7 @@ export const createCollectionsClient = (
     }
 
     // Fallback to local storage
-    if (isLocalStorageAvailable(clientOptions)) {
+    if (await isAnyLocalDataAvailable(clientOptions)) {
       return readFromLocalStorage<Row>(collection, options);
     }
 

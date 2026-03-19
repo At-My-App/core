@@ -51,6 +51,22 @@ export type LocalStorageOptions = {
   timeoutMs?: number;
 };
 
+export type LocalDataSourceEntry = {
+  id: string | number;
+  data: Record<string, unknown>;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type LocalDataSource = {
+  readFile: (
+    path: string,
+  ) => Promise<string | ArrayBuffer | Record<string, unknown> | null>;
+  readJson: (path: string) => Promise<unknown | null>;
+  listCollection: (name: string) => Promise<LocalDataSourceEntry[]>;
+  getStaticUrl?: (path: string) => Promise<string | null>;
+};
+
 export type AtMyAppClientOptions = {
   apiKey: string;
   baseUrl: string;
@@ -70,6 +86,10 @@ export type AtMyAppClientOptions = {
    * Local storage configuration for fallback/local modes
    */
   localStorage?: LocalStorageOptions;
+  /**
+   * Optional browser-friendly local data adapter used by local/with-fallback modes.
+   */
+  localDataSource?: LocalDataSource;
 };
 
 export type AnalyticsClient = {
