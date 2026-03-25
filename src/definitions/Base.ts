@@ -4,6 +4,7 @@ export interface BaseDef<
   Type extends string = string,
 > {
   path: Path;
+  description?: string;
   returnType: ReturnType;
   type: Type;
   __is_ATMYAPP_Object: true;

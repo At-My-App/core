@@ -2,7 +2,7 @@ import { Base, BaseDef } from "./Base";
 
 export interface AmaIconDef<Path extends string> extends BaseDef<Path, AmaIcon<any>, "icon"> {
   structure: {
-    __amatype: "AmaIcon";
+    __amatype: "AmaIconDef";
   };
 }
 

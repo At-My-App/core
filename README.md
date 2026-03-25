@@ -43,6 +43,39 @@ yarn add @atmyapp/core
 pnpm add @atmyapp/core
 ```
 
+## 🧭 Schema Model
+
+`@atmyapp/core` is the authoring/client package. The canonical runtime schema system now lives in `@atmyapp/structure`, which is re-exported from `@atmyapp/core`.
+
+Use this split as a rule of thumb:
+
+- use `@atmyapp/core` for client access and legacy AMA authoring definitions such as `AmaContentDef`, `AmaImageDef`, and `AmaEventDef`
+- use `@atmyapp/structure` APIs for canonical schema authoring, compilation, validation, and introspection
+
+Example:
+
+```typescript
+import { defineCollection, defineDocument, defineSchema, s } from "@atmyapp/core";
+
+const schema = defineSchema({
+  definitions: {
+    posts: defineCollection({
+      fields: {
+        title: s.string(),
+        cover: s.image(),
+      },
+    }),
+    settings: defineDocument({
+      fields: {
+        theme: s.string(),
+      },
+    }),
+  },
+});
+```
+
+During rollout, projects may still persist generated `.structure.json`, but the runtime meaning of that structure should come from the shared canonical schema package.
+
 ## 🚀 Quick Start
 
 ```typescript

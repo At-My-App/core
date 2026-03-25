@@ -2,6 +2,7 @@ import {
   AtMyAppClientOptions,
   CollectionsFilterExpr,
   CollectionsRawEntry,
+  LocalDataSourceEntry,
 } from "./clientTypes";
 
 type NodeFs = typeof import("fs");
@@ -46,7 +47,7 @@ interface BlobManifest {
 /**
  * Entry structure as stored in snapshot
  */
-interface SnapshotEntry {
+export interface SnapshotEntry {
   id: string | number;
   data: Record<string, unknown>;
   createdAt?: string;
@@ -579,4 +580,67 @@ export function toRawEntries(entries: SnapshotEntry[]): CollectionsRawEntry[] {
     createdAt: entry.createdAt,
     updatedAt: entry.updatedAt,
   }));
+}
+
+export async function isAnyLocalDataAvailable(
+  options: AtMyAppClientOptions,
+): Promise<boolean> {
+  if (options.localDataSource) {
+    return true;
+  }
+
+  return isLocalStorageAvailable(options);
+}
+
+export async function readLocalJsonValue(
+  filePath: string,
+  options: AtMyAppClientOptions,
+): Promise<unknown | null> {
+  if (options.localDataSource) {
+    return options.localDataSource.readJson(filePath);
+  }
+
+  return readLocalFileJson(filePath, options);
+}
+
+export async function readLocalFileValue(
+  filePath: string,
+  options: AtMyAppClientOptions,
+): Promise<string | ArrayBuffer | Record<string, unknown> | Buffer | null> {
+  if (options.localDataSource) {
+    return options.localDataSource.readFile(filePath);
+  }
+
+  return readLocalFile(filePath, options);
+}
+
+export async function getLocalStaticUrl(
+  filePath: string,
+  options: AtMyAppClientOptions,
+): Promise<string> {
+  if (options.localDataSource?.getStaticUrl) {
+    const value = await options.localDataSource.getStaticUrl(filePath);
+    if (value) {
+      return value;
+    }
+  }
+
+  return getLocalFileUrl(filePath, options);
+}
+
+export async function listLocalEntriesFromAnySource(
+  collectionName: string,
+  options: AtMyAppClientOptions,
+): Promise<SnapshotEntry[]> {
+  if (options.localDataSource) {
+    const entries = await options.localDataSource.listCollection(collectionName);
+    return entries.map((entry: LocalDataSourceEntry) => ({
+      id: entry.id,
+      data: entry.data,
+      createdAt: entry.createdAt,
+      updatedAt: entry.updatedAt,
+    }));
+  }
+
+  return listLocalEntries(collectionName, options);
 }
