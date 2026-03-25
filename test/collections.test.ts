@@ -161,7 +161,7 @@ describe("Collections client", () => {
 
     expect(Object.keys(rows)).toEqual(["1", "2"]);
     expect(rows["1"].title).toBe("First");
-    expect(requestUrl?.searchParams.getAll("plugins")).toEqual(["static-url"]);
+    expect(requestUrl?.searchParams.getAll("plugins")).toEqual(["asset-object"]);
   });
 
   it("returns raw rows when format is raw", async () => {
@@ -185,5 +185,57 @@ describe("Collections client", () => {
     expect(rows[0].id).toBe("1");
     expect(rows[0].data.title).toBe("First");
     expect(rows[0].created).toBe("2024-01-01");
+  });
+
+  it("returns quiet empty states by default when collection requests fail", async () => {
+    server.use(
+      http.get(`${API_BASE_URL}/collections/:collection/entries`, () => {
+        return new HttpResponse(
+          JSON.stringify({ error: "Collections request failed" }),
+          {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      })
+    );
+
+    const client = createAtMyAppClient({ apiKey: "k", baseUrl: API_BASE_URL });
+
+    await expect(client.collections.list("orders")).resolves.toEqual([]);
+    await expect(
+      client.collections.list("orders", { format: "dictionary" })
+    ).resolves.toEqual({});
+    await expect(
+      client.collections.first("orders", { format: "dataWithMeta" })
+    ).resolves.toEqual({ row: null, total: 0 });
+    await expect(client.collections.getById("orders", "1")).resolves.toBeNull();
+    await expect(
+      client.collections.getManyByIds("orders", ["1", "2"])
+    ).resolves.toEqual([]);
+  });
+
+  it("supports throw mode for collection failures", async () => {
+    server.use(
+      http.get(`${API_BASE_URL}/collections/:collection/entries`, () => {
+        return new HttpResponse(
+          JSON.stringify({ error: "Collections request failed" }),
+          {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      })
+    );
+
+    const client = createAtMyAppClient({
+      apiKey: "k",
+      baseUrl: API_BASE_URL,
+      errorPolicy: "throw",
+    });
+
+    await expect(client.collections.list("orders")).rejects.toThrow(
+      "Collections request failed"
+    );
   });
 });

@@ -4,22 +4,11 @@ import {
   AmaCustomEventDef,
 } from "../definitions/AmaCustomEvent";
 import { AmaEvent, AmaEventDef } from "../definitions/AmaEvent";
-import { AtMyAppClientOptions } from "./clientTypes";
+import { AtMyAppClientOptions, type AnalyticsClient } from "./clientTypes";
 
-export interface AnalyticsClient {
-  trackCustomEvent<Event extends AmaCustomEventDef<string, string[]>>(
-    eventId: Event["id"],
-    data: Record<Event["columns"][number], string> | string[]
-  ): Promise<boolean>;
-
-  trackEvent<Event extends AmaEventDef<string>>(
-    eventId: Event["id"]
-  ): Promise<boolean>;
-}
-
-export const createAnalyticsClient = (
+export const createAnalyticsClient = <TSchema = unknown>(
   clientOptions: AtMyAppClientOptions
-): AnalyticsClient => {
+): AnalyticsClient<TSchema> => {
   const $fetch = createFetch({
     baseURL: `${clientOptions.baseUrl}/analytics`,
     auth: {

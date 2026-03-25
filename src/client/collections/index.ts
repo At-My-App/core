@@ -25,12 +25,22 @@ import {
  * @param clientOptions The options for the client.
  * @returns A new CollectionsClient.
  */
-export const createCollectionsClient = (
+export const createCollectionsClient = <TSchema = unknown>(
   clientOptions: AtMyAppClientOptions
-): CollectionsClient => {
+): CollectionsClient<TSchema> => {
   const collectionsUrl = `${clientOptions.baseUrl}/collections`;
   const clientMode = clientOptions.clientMode ?? "online";
+  const errorPolicy = clientOptions.errorPolicy ?? "quiet-empty";
+  const shouldThrowErrors = errorPolicy === "throw";
   const timeoutMs = clientOptions.localStorage?.timeoutMs ?? 5000;
+
+  const warnQuietFallback = (method: string, collection: string, message: string) => {
+    if (!shouldThrowErrors) {
+      console.warn(
+        `AtMyApp collections: returning quiet empty state for ${method}("${collection}") because ${message}.`
+      );
+    }
+  };
 
   const $fetch = createFetch({
     baseURL: collectionsUrl,
@@ -140,7 +150,7 @@ export const createCollectionsClient = (
         (query as any)[key] = [current as string, value];
       }
     });
-    const plugins = options?.plugins ?? clientOptions.plugins ?? ["static-url"];
+    const plugins = options?.plugins ?? clientOptions.plugins ?? ["asset-object"];
     if (plugins.length === 1) {
       query["plugins"] = plugins[0];
     } else if (plugins.length > 1) {
@@ -257,7 +267,11 @@ export const createCollectionsClient = (
       );
     }
     const err = resp.error || "Collections request failed";
-    throw new Error(err);
+    if (shouldThrowErrors) {
+      throw new Error(err);
+    }
+    warnQuietFallback("list", collection, err);
+    return transformRows<Row, Format>([], format, 0);
   }
 
   // Overloads for getById
@@ -292,8 +306,16 @@ export const createCollectionsClient = (
       filter: F.eq("id", id),
       limit: 1,
     });
-    const total = rows.data?.total ?? 0;
-    const rawRow = rows.data?.entries[0] ?? null;
+    if (rows.success !== true || !rows.data) {
+      const err = rows.error || "Collections request failed";
+      if (shouldThrowErrors) {
+        throw new Error(err);
+      }
+      warnQuietFallback("getById", collection, err);
+      return transformSingle<Row, Format>(null, format, 0);
+    }
+    const total = rows.data.total ?? 0;
+    const rawRow = rows.data.entries[0] ?? null;
     return transformSingle<Row, Format>(rawRow, format, total);
   }
 
@@ -330,7 +352,11 @@ export const createCollectionsClient = (
       return transformSingle<Row, Format>(rawRow, format, total);
     }
     const err = resp.error || "Collections request failed";
-    throw new Error(err);
+    if (shouldThrowErrors) {
+      throw new Error(err);
+    }
+    warnQuietFallback("first", collection, err);
+    return transformSingle<Row, Format>(null, format, 0);
   }
 
   // Add: getManyByIds helper (returns rows found, ordered by ids)
@@ -378,7 +404,11 @@ export const createCollectionsClient = (
     });
     if (resp.success !== true || !resp.data) {
       const err = resp.error || "Collections request failed";
-      throw new Error(err);
+      if (shouldThrowErrors) {
+        throw new Error(err);
+      }
+      warnQuietFallback("getManyByIds", collection, err);
+      return transformRows<Row, Format>([], format, 0);
     }
 
     const rank = new Map<string, number>(ids.map((v, i) => [String(v), i]));
