@@ -35,7 +35,7 @@
     "typescript": "^5.8.3"
   },
   "dependencies": {
-    "@atmyapp/structure": "^0.1.0",
+    "@atmyapp/structure": "^0.1.1",
     "@better-fetch/fetch": "^1.1.18"
   }
 }

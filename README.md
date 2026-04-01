@@ -15,6 +15,7 @@
   - [Client Setup](#client-setup)
   - [Collections API](#collections-api)
   - [Analytics API](#analytics-api)
+  - [Submissions API](#submissions-api)
 - [🎨 Type Definitions](#-type-definitions)
 - [💡 Examples](#-examples)
 - [🔧 Configuration](#-configuration)
@@ -55,9 +56,23 @@ Use this split as a rule of thumb:
 Example:
 
 ```typescript
-import { defineCollection, defineDocument, defineSchema, s } from "@atmyapp/core";
+import {
+  defineCollection,
+  defineDocument,
+  defineSchema,
+  defineSubmission,
+  s,
+} from "@atmyapp/core";
 
 const schema = defineSchema({
+  submissions: {
+    contact: defineSubmission({
+      fields: {
+        name: s.string(),
+        email: s.email(),
+      },
+    }),
+  },
   definitions: {
     posts: defineCollection({
       fields: {
@@ -360,6 +375,96 @@ await client.analytics.trackCustomEvent("campaign_click", {
   content: "hero_banner",
 });
 ```
+
+### Submissions API
+
+Use the submissions client to send form payloads, generate `<form>` attributes, and inspect whether a form is currently accepting responses.
+
+Setup
+```typescript
+import {
+  createAtMyAppClient,
+  defineSchema,
+  defineSubmission,
+  s,
+  type InferSubmission,
+} from "@atmyapp/core";
+
+const schema = defineSchema({
+  definitions: {},
+  submissions: {
+    contact: defineSubmission({
+      fields: {
+        name: s.string(),
+        email: s.email(),
+        message: s.longText({ optional: true }),
+        resume: s.file({ optional: true }),
+      },
+    }),
+  },
+});
+
+const client = createAtMyAppClient({
+  apiKey: "your-api-key",
+  baseUrl: "https://api.atmyapp.com",
+  schema,
+});
+
+type ContactSubmission = InferSubmission<"contact", typeof schema>;
+```
+
+Submit JSON payloads
+```typescript
+const payload: ContactSubmission = {
+  name: "John",
+  email: "john@example.com",
+  message: "Hello!",
+};
+
+const result = await client.submissions.submit("contact", payload);
+console.log(result.submissionId);
+```
+
+Submit files
+```typescript
+await client.submissions.submit("contact", {
+  name: "John",
+  email: "john@example.com",
+  resume: new File(["resume"], "resume.pdf", {
+    type: "application/pdf",
+  }),
+});
+```
+
+Generate `<form>` attributes
+```typescript
+const formParams = await client.submissions.getFormParams("contact");
+
+<form
+  action={formParams.action}
+  method={formParams.method}
+  encType={formParams.encType}
+>
+  <input name="name" required />
+  <input name="email" type="email" required />
+  <textarea name="message" />
+</form>;
+```
+
+Check availability
+```typescript
+const accepting = await client.submissions.isAcceptingResponses("contact");
+
+if (!accepting) {
+  console.log("Form is currently closed");
+}
+```
+
+Notes
+- `getFormUrl()` returns the generated public form URL for a submission type.
+- `getTypeStatus()` returns a richer object with `acceptingResponses`, captcha info, and the stored form URL.
+- `acceptingResponses` is managed in the dashboard and is intentionally not part of `defineSubmission()`.
+- When a payload includes files, the client automatically switches to `multipart/form-data` and serializes non-file values into the `data` field.
 
 ## 🎨 Type Definitions
 

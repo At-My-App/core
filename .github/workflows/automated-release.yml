@@ -56,7 +56,7 @@ jobs:
       - name: Check if prerelease
         id: check_prerelease
         run: |
-          if [ "${{ github.ref_name }}" != "main" ]; then
+          if [ "${{ github.ref_name }}" != "main" ] && [ "${{ github.ref_name }}" != "master" ]; then
             echo "prerelease=true" >> $GITHUB_OUTPUT
           else
             echo "prerelease=false" >> $GITHUB_OUTPUT

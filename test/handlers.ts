@@ -85,6 +85,53 @@ export const handlers = [
     });
   }),
 
+  http.get(`${API_BASE_URL}/submissions/types`, () => {
+    return HttpResponse.json({
+      success: true,
+      data: [
+        {
+          type: "contact",
+          accepting_responses: true,
+          requires_captcha: false,
+          captcha_provider: null,
+          static_form_url: "contact-form-id",
+        },
+        {
+          type: "closed",
+          accepting_responses: false,
+          requires_captcha: true,
+          captcha_provider: "hcaptcha",
+          static_form_url: "closed-form-id",
+        },
+      ],
+      error: "",
+    });
+  }),
+
+  http.post(`${API_BASE_URL}/submissions/:submissionType/form-url`, ({ params }) => {
+    const submissionType = params.submissionType as string;
+
+    return HttpResponse.json({
+      success: true,
+      data: {
+        formUrl: `https://edge.atmyapp.com/forms/project/${submissionType}`,
+      },
+      error: "",
+    });
+  }),
+
+  http.post(`${API_BASE_URL}/submissions/:submissionType`, async ({ params }) => {
+    const submissionType = params.submissionType as string;
+
+    return HttpResponse.json({
+      success: true,
+      data: {
+        submissionId: `${submissionType}-submission-id`,
+      },
+      error: "",
+    });
+  }),
+
   // Default handler for paths not explicitly defined
   http.get(`${API_BASE_URL}/storage/f/:path`, ({ params }) => {
     const path = params.path as string;

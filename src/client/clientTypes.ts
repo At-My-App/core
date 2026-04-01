@@ -75,6 +75,37 @@ type ImageAssetValue = FileAssetValue & {
   alt?: string;
 };
 
+type SubmissionBinaryValue = Blob | File;
+
+type SubmissionAssetValue<TField extends AssetFieldDefinition> =
+  TField["assetKind"] extends "gallery"
+    ? Array<
+        | SubmissionBinaryValue
+        | {
+            file: SubmissionBinaryValue;
+            name?: string;
+            mimeType?: string;
+            alt?: string;
+          }
+      >
+    : TField["multiple"] extends true
+    ? Array<
+        | SubmissionBinaryValue
+        | {
+            file: SubmissionBinaryValue;
+            name?: string;
+            mimeType?: string;
+            alt?: TField["assetKind"] extends "image" ? string : never;
+          }
+      >
+    : | SubmissionBinaryValue
+      | {
+          file: SubmissionBinaryValue;
+          name?: string;
+          mimeType?: string;
+          alt?: TField["assetKind"] extends "image" ? string : never;
+        };
+
 type AssetValue<TField extends AssetFieldDefinition> = TField["assetKind"] extends "gallery"
   ? ImageAssetValue[]
   : TField["multiple"] extends true
@@ -114,6 +145,28 @@ type CanonicalFieldValue<TField extends FieldDefinition> = TField extends Scalar
   ? CanonicalFieldValue<TVariants[number]>
   : string;
 
+type SubmissionFieldValue<TField extends FieldDefinition> = TField extends ScalarFieldDefinition
+  ? ScalarValue<TField>
+  : TField extends EnumFieldDefinition
+  ? EnumValue<TField>
+  : TField extends ObjectFieldDefinition
+  ? StructuredSubmissionObjectValue<TField["fields"]>
+  : TField extends ArrayFieldDefinition
+  ? SubmissionFieldValue<TField["items"]>[]
+  : TField extends AssetFieldDefinition
+  ? SubmissionAssetValue<TField>
+  : TField extends ReferenceFieldDefinition
+  ? ReferenceValue<TField>
+  : TField extends { kind: "union"; variants: infer TVariants extends FieldDefinition[] }
+  ? SubmissionFieldValue<TVariants[number]>
+  : string;
+
+type StructuredSubmissionObjectValue<TFields extends Record<string, FieldDefinition>> = {
+  [K in RequiredFieldKeys<TFields>]: SubmissionFieldValue<TFields[K]>;
+} & {
+  [K in OptionalFieldKeys<TFields>]?: SubmissionFieldValue<TFields[K]>;
+};
+
 type CanonicalEntryType<
   TDefinition extends CollectionDefinition | DocumentDefinition,
 > = StructuredObjectValue<TDefinition["fields"]> & GeneratedSystemFields<TDefinition>;
@@ -134,6 +187,27 @@ type ExtractEvents<TSchema> =
       : {}
     : {};
 
+type ExtractSubmissions<TSchema> =
+  TSchema extends { submissions: infer TSubmissions }
+    ? TSubmissions extends Record<string, { fields?: Record<string, FieldDefinition> }>
+      ? TSubmissions
+      : {}
+    : {};
+
+type ExtractSubmissionFields<TSchema, TName extends SubmissionName<TSchema>> =
+  ExtractSubmissions<TSchema>[TName] extends {
+    fields: infer TFields;
+  }
+    ? TFields extends Record<string, FieldDefinition>
+      ? TFields
+      : {}
+    : {};
+
+type SubmissionPayload<
+  TSchema,
+  TName extends SubmissionName<TSchema>,
+> = StructuredSubmissionObjectValue<ExtractSubmissionFields<TSchema, TName>>;
+
 type CollectionDefinitions<TSchema> = {
   [K in keyof ExtractDefinitions<TSchema> as ExtractDefinitions<TSchema>[K] extends {
     kind: "collection";
@@ -152,6 +226,7 @@ type CollectionRow<
 >;
 
 type EventName<TSchema> = keyof ExtractEvents<TSchema> & string;
+type SubmissionName<TSchema> = keyof ExtractSubmissions<TSchema> & string;
 
 type EventColumns<
   TSchema,
@@ -167,6 +242,7 @@ export type AtMyAppClient<
   storage: StorageClient<TSchema, THasRuntimeSchema>;
   analytics: AnalyticsClient<TSchema>;
   collections: CollectionsClient<TSchema>;
+  submissions: SubmissionsClient<TSchema>;
   meta: MetaClient;
 };
 
@@ -401,6 +477,65 @@ export type AnalyticsClient<TSchema = unknown> = {
   trackEvent<Event extends AmaEventDef<string>>(
     eventId: Event["id"],
   ): Promise<boolean>;
+};
+
+export type SubmissionFormEncType =
+  | "application/x-www-form-urlencoded"
+  | "multipart/form-data";
+
+export type SubmissionFormParams = {
+  action: string;
+  method: "POST";
+  encType: SubmissionFormEncType;
+};
+
+export type SubmissionSubmitOptions = {
+  signal?: AbortSignal;
+};
+
+export type SubmissionSubmitResult = {
+  submissionId: string;
+};
+
+export type SubmissionTypeStatus = {
+  type: string;
+  acceptingResponses: boolean;
+  requiresCaptcha: boolean;
+  captchaProvider: string | null;
+  formUrl: string | null;
+};
+
+export type SubmissionsClient<TSchema = unknown> = {
+  submit<Name extends SubmissionName<TSchema>>(
+    submission: Name,
+    data: SubmissionPayload<TSchema, Name> | FormData,
+    options?: SubmissionSubmitOptions,
+  ): Promise<SubmissionSubmitResult>;
+  submit(
+    submission: SubmissionName<TSchema> extends never ? string : never,
+    data: Record<string, unknown> | FormData,
+    options?: SubmissionSubmitOptions,
+  ): Promise<SubmissionSubmitResult>;
+  getFormUrl<Name extends SubmissionName<TSchema>>(submission: Name): Promise<string>;
+  getFormUrl(submission: SubmissionName<TSchema> extends never ? string : never): Promise<string>;
+  getFormParams<Name extends SubmissionName<TSchema>>(
+    submission: Name,
+  ): Promise<SubmissionFormParams>;
+  getFormParams(
+    submission: SubmissionName<TSchema> extends never ? string : never,
+  ): Promise<SubmissionFormParams>;
+  isAcceptingResponses<Name extends SubmissionName<TSchema>>(
+    submission: Name,
+  ): Promise<boolean>;
+  isAcceptingResponses(
+    submission: SubmissionName<TSchema> extends never ? string : never,
+  ): Promise<boolean>;
+  getTypeStatus<Name extends SubmissionName<TSchema>>(
+    submission: Name,
+  ): Promise<SubmissionTypeStatus | null>;
+  getTypeStatus(
+    submission: SubmissionName<TSchema> extends never ? string : never,
+  ): Promise<SubmissionTypeStatus | null>;
 };
 
 // Collections types

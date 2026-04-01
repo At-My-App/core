@@ -16,6 +16,12 @@ export type {
   CollectionsResponse,
   ClientMode,
   ClientErrorPolicy,
+  SubmissionsClient,
+  SubmissionFormParams,
+  SubmissionFormEncType,
+  SubmissionSubmitOptions,
+  SubmissionSubmitResult,
+  SubmissionTypeStatus,
   LocalDataSource,
   LocalDataSourceEntry,
   LocalStorageOptions,
@@ -24,6 +30,7 @@ export type { MetaClient } from "./client/meta";
 export type { AtMyAppHeadConfig } from "./client/metaTypes";
 export type { AtMyAppConfig, AtMyAppConfigArgs } from "./client/configTypes";
 export { createCollectionsClient } from "./client/collections";
+export { createSubmissionsClient } from "./client/submissions";
 export { F as CollectionsFilter } from "./client/collections/filter-dsl";
 
 export type { AmaContent, AmaContentDef } from "./definitions/AmaContent";
